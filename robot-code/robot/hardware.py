@@ -2,7 +2,9 @@ from controller import Robot as WebotsRobot
 
 
 class Hardware:
-    '''General robot hardware'''
+    '''
+    General robot hardware controller
+    '''
     
     def __init__(self, time_step):
         self.time_step = time_step
@@ -49,6 +51,24 @@ class Hardware:
         self.lidar.enable(time_step*5)
         self.lidar.enablePointCloud()
     
-    
+    def speed(self, left_speed, right_speed):
+        '''
+        Sets the wheels rotationals speeds
+        '''
+        self.wheel_left.setVelocity(left_speed)
+        self.wheel_right.setVelocity(right_speed)
 
+    def send_victim(self, victim_position, victim_type):
+        '''
+        Sends victim information to server
+        '''
+        message = struct.pack("i i c", int(victim_position[0], victim_position[1]), victim_type)
+        emitter.send(message)
+        
 
+    def send_endgame(self, map):
+        '''
+        Sends endgame message and map to server
+        '''
+        message = struct.pack("i i c", int((self.final_coords[0]+initial_gps[0])*100), int((self.final_coords[1]+initial_gps[1])*100), victim_type)
+        emitter.send(message)
