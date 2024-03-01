@@ -2,5 +2,4 @@ absuloute_dir = r'C:\Users\Marcos Menezes\Documents\erebus-v23.0.5\player_contro
 import sys
 
 sys.path.append(absuloute_dir)
-print(sys.path)
 import main

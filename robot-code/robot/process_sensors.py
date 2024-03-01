@@ -16,7 +16,7 @@ class Sensors:
         #Gyroscope
         self.gyro = self.hardware.getDevice("gyro")
         self.gyro.enable(self.time_step)
-        self.last_gyro = 0 # nao e o inicial mesmo, precisa do run_calibration
+        self.last_gyro = 0 
 
         #Centered camera
         self.camera_front = self.hardware.getDevice("camera1")
@@ -40,9 +40,10 @@ class Sensors:
         self.update_gps()
         self.update_gyro()
 
+        # usa o LiDAR
+
         # ve as cameras
 
-        # usa o LiDAR
         return
 
     def update_gps(self):
