@@ -1,5 +1,6 @@
-import numpy
+import numpy as np
 import math
+import cv2
 
 class Map:
 
@@ -10,40 +11,36 @@ class Map:
         self.range_y = [-self.resolution, self.resolution]
         
         # map[x, y]
-        self.map = numpy.zeros(self.size)
+        self.map = np.zeros(self.size, dtype=int)
 
 
     def expand(self, point):
-        if point[0] < self.range_x[0]: 
+        if point[0] < self.range_x[0]:
             dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution)
-
             while dif_map_x:
-                map.insert(0, 0, axis=0)
+                self.map = np.insert(self.map, 0, 0, axis=0)
                 self.range_x[0] = self.range_x[0] - self.resolution
                 dif_map_x = dif_map_x - 1
 
         if point[0] > self.range_x[1]: 
             dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution)
-
             while dif_map_x:
-                map.insert(map.size()-1, 0, axis=0)
-                self.range_x[1] = self.range_x[1] - self.resolution
+                self.map = np.insert(self.map, np.size(self.map, 0)-1, 0, axis=0)
+                self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
 
         if point[1] < self.range_y[0]: 
             dif_map_y = math.ceil((self.range_y[0] - point[1])/self.resolution)
-
             while dif_map_y:
-                map.insert(0, 0, axis=1)
+                self.map = np.insert(self.map, 0, 0, axis=1)
                 self.range_y[0] = self.range_y[0] - self.resolution
                 dif_map_y = dif_map_y - 1
 
         if point[1] > self.range_y[1]: 
             dif_map_y = math.ceil((point[1] - self.range_y[1])/self.resolution)
-
             while dif_map_y:
-                map.insert(map[0].size()-1, 0, axis=1)
-                self.range_y[1] = self.range_y[1] - self.resolution
+                self.map = np.insert(self.map, np.size(self.map, 1)-1, 0, axis=1)
+                self.range_y[1] = self.range_y[1] + self.resolution
                 dif_map_y = dif_map_y - 1
 
         return 
@@ -55,23 +52,42 @@ class Map:
                 math.floor((real_point[1]-self.range_y[0])/self.resolution)]
         
 
-
     def map_to_real(self, map_point):
 
         return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
-                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
-           
-
+                self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
     def add_point(self, point, type):
+        mapx, mapy = self.real_to_map(point)
+        self.map[mapx, mapy] = type
+
         return
         
 
     def print_map(self):
-        for x in range(map.size()):
-            for y in range(map[0].size()):
-                print(map[x, y], end="")
+        for y in range(np.size(self.map, 1)-1, -1, -1):
+            for x in range(np.size(self.map, 0)):
+                print(self.map[x, y], end=" ")
+            print(" ")
+
+
+    def print_real_map(self):
+        for y in range(np.size(self.map, 1)-1, -1, -1):
+            for x in range(np.size(self.map, 0)):
+                print(self.map_to_real([x, y]), end=" ")
             print(" ")
     
-    #def map_jpeg
+
+    def map_png(self):
+        transpose = self.map.copy()
+
+        for y in range(np.size(self.map, 1)-1, -1, -1):
+            for x in range(np.size(self.map, 0)):
+                transpose[x, np.size(self.map, 1)-1-y] = self.map[x, y]
+
+        s = 'teste1.png'
+        M = abs(transpose)*255
+        cv2.imwrite(s, M)
+
+        return 
