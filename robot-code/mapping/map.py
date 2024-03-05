@@ -47,44 +47,52 @@ class Map:
 
 
     def real_to_map(self, real_point):
-    
+
         return [math.floor((real_point[0]-self.range_x[0])/self.resolution),
                 math.floor((real_point[1]-self.range_y[0])/self.resolution)]
         
 
     def map_to_real(self, map_point):
 
+        #return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
+                #self.range_y[0]+(np.size(self.map, 1)-map_point[1]-1)*self.resolution+self.resolution/2]
+        
         return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
     def add_point(self, point, type):
         mapx, mapy = self.real_to_map(point)
+        print("added", type, "at", mapx, mapy)
         self.map[mapx, mapy] = type
 
         return
         
 
     def print_map(self):
-        for y in range(np.size(self.map, 1)-1, -1, -1):
+        for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
                 print(self.map[x, y], end=" ")
             print(" ")
 
+        return
+
 
     def print_real_map(self):
-        for y in range(np.size(self.map, 1)-1, -1, -1):
+        for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
                 print(self.map_to_real([x, y]), end=" ")
             print(" ")
+
+        return
     
 
     def map_png(self):
-        transpose = self.map.copy()
+        transpose = np.zeros([np.size(self.map, 1), np.size(self.map, 0)])
 
-        for y in range(np.size(self.map, 1)-1, -1, -1):
+        for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
-                transpose[x, np.size(self.map, 1)-1-y] = self.map[x, y]
+                transpose[y, x] = self.map[x, np.size(self.map, 1)-1-y]
 
         s = 'teste1.png'
         M = abs(transpose)*255

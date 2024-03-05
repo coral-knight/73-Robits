@@ -11,14 +11,12 @@ def main():
     ''''''
     map = Map()
 
-    map.expand([0.13, 0.13])
-    map.expand([-0.13, -0.13])
+    map.expand([0.09, 0.09])
+    map.expand([-0.09, -0.09])
     map.print_map()
 
-    print(map.real_to_map([0, 0]))
-    print(map.real_to_map([-0.10, 0.10]))
-    map.add_point([0, 0], 1)
-    map.add_point([-0.10, 0.10], 2)
+    map.add_point([0, 0], 2)
+    map.add_point([0.03, 0.09], 1)
 
     map.print_real_map()
 
