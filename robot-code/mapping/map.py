@@ -65,7 +65,11 @@ class Map:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
+    # verificar se tem ponto perto
+
     def add_point(self, point):
+        self.expand(point)
+
         mapx, mapy = self.real_to_map(point)
         self.map[mapx, mapy].append(point)
 
@@ -93,7 +97,7 @@ class Map:
 
         for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
-                if len(self.map[x, np.size(self.map, 1)-1-y]) > 1:
+                if len(self.map[x, np.size(self.map, 1)-1-y]) > 3:
                     transpose[y, x] = 1
 
         s = 'teste1.png'

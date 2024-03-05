@@ -1,9 +1,13 @@
 import math
+from robot.process_lidar import Lidar
+from mapping.map import Map
 
 class Sensors:
     def __init__(self, hardware, time_step):
         self.hardware = hardware
         self.time_step = time_step
+
+        self.map = Map()
 
         #GPS 
         self.gps = self.hardware.getDevice("gps")
@@ -35,12 +39,17 @@ class Sensors:
         self.lidar.enable(self.time_step*5)
         self.lidar.enablePointCloud()
 
+        self.process_lidar = Lidar(self.lidar, self.map)
 
-    def update(self):
+
+    def update(self, current_tick):
         self.update_gps()
         self.update_gyro()
 
-        # usa o LiDAR
+        print(self.last_gyro)
+
+        if current_tick % 5 == 0:
+            self.process_lidar.update(self.front_gps, self.last_gyro)
 
         # ve as cameras
 

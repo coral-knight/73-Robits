@@ -21,7 +21,7 @@ class Robot:
         self.wheel_left.setPosition(float("inf"))
 
         #Right wheel
-        self.wheel_right = self.hardware.getDevice("wheel1 motor")
+        self.wheel_right = self.hardware.getDevice("wheel2 motor")
         self.wheel_right.setPosition(float("inf"))
         
         #Receiver
@@ -77,6 +77,9 @@ class Robot:
         '''
         Runs a tick of the robot simulation
         '''
+        self.speed(0, 0)
+        self.sensors.update(self.current_tick)
+
         return
         
 
