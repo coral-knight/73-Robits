@@ -53,9 +53,6 @@ class Map:
         
 
     def map_to_real(self, map_point):
-
-        #return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
-                #self.range_y[0]+(np.size(self.map, 1)-map_point[1]-1)*self.resolution+self.resolution/2]
         
         return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
@@ -65,15 +62,6 @@ class Map:
         mapx, mapy = self.real_to_map(point)
         print("added", type, "at", mapx, mapy)
         self.map[mapx, mapy] = type
-
-        return
-        
-
-    def print_map(self):
-        for y in range(np.size(self.map, 1)):
-            for x in range(np.size(self.map, 0)):
-                print(self.map[x, y], end=" ")
-            print(" ")
 
         return
 
