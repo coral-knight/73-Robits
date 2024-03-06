@@ -32,8 +32,9 @@ class Lidar:
 
 
             if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
-                #print("add", i, coordX, coordY)
-                self.map.add_point([coordX, coordY])
+                    self.map.add_point([coordX, coordY])
+                    for i in range(20): 
+                        self.map.seen([(i*front_gps[0]+(19-i)*coordX)/19, (i*front_gps[1]+(19-i)*coordY)/19])
 
         self.map.to_png()
 

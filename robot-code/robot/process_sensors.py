@@ -46,8 +46,6 @@ class Sensors:
         self.update_gps()
         self.update_gyro()
 
-        print(self.last_gyro)
-
         if current_tick % 5 == 0:
             self.process_lidar.update(self.front_gps, self.last_gyro)
 

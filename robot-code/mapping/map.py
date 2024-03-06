@@ -17,12 +17,17 @@ class Map:
                 self.map[x, y] = [0]
 
 
+        # 0: unknown | 1: lidar | 2: camera | 3: passed by
+        self.seen_map = np.zeros(self.size, dtype=int)
+
+
     def expand(self, point):
         if point[0] < self.range_x[0]:
             dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution)
             while dif_map_x:
                 self.map = np.insert(self.map, 0, None, axis=0)
                 for y in range(np.size(self.map, 1)): self.map[0, y] = [0]
+                self.seen_map = np.insert(self.map, 0, 0, axis=0)
                 self.range_x[0] = self.range_x[0] - self.resolution
                 dif_map_x = dif_map_x - 1
 
@@ -31,6 +36,7 @@ class Map:
             while dif_map_x:
                 self.map = np.insert(self.map, np.size(self.map, 0), None, axis=0)
                 for y in range(np.size(self.map, 1)): self.map[np.size(self.map, 0)-1, y] = [0]
+                self.seen_map = np.insert(self.map, np.size(self.map, 0), 0, axis=0)
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
 
@@ -39,6 +45,7 @@ class Map:
             while dif_map_y:
                 self.map = np.insert(self.map, 0, None, axis=1)
                 for x in range(np.size(self.map, 0)): self.map[x, 0] = [0]
+                self.seen_map = np.insert(self.map, 0, 0, axis=1)
                 self.range_y[0] = self.range_y[0] - self.resolution
                 dif_map_y = dif_map_y - 1
 
@@ -47,6 +54,7 @@ class Map:
             while dif_map_y:
                 self.map = np.insert(self.map, np.size(self.map, 1), None, axis=1)
                 for x in range(np.size(self.map, 0)): self.map[x, np.size(self.map, 1)-1] = [0]
+                self.seen_map = np.insert(self.map, np.size(self.map, 1), 0, axis=1)
                 self.range_y[1] = self.range_y[1] + self.resolution
                 dif_map_y = dif_map_y - 1
 
@@ -65,11 +73,11 @@ class Map:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
-    # verificar se tem ponto perto
-
     def add_point(self, point):
         self.expand(point)
+        self.seen(point)
 
+        # verificar se tem ponto perto
         mapx, mapy = self.real_to_map(point)
         self.map[mapx, mapy].append(point)
 
@@ -105,3 +113,16 @@ class Map:
         cv2.imwrite(s, M)
 
         return 
+    
+
+    def seen(self, point):
+        mapx, mapy = self.real_to_map(point)
+        map.seen_map[mapx, mapy] = 1
+
+        return
+    
+    def explored(self, point):
+        mapx, mapy = self.real_to_map(point)
+        map.seen_map[mapx, mapy] = 3
+
+        return
