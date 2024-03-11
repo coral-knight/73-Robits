@@ -3,11 +3,11 @@ from robot.process_lidar import Lidar
 from mapping.map import Map
 
 class Sensors:
-    def __init__(self, hardware, time_step):
+    def __init__(self, hardware, time_step, map):
         self.hardware = hardware
         self.time_step = time_step
 
-        self.map = Map()
+        self.map = map
 
         #GPS 
         self.gps = self.hardware.getDevice("gps")

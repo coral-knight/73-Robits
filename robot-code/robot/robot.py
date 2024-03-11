@@ -1,5 +1,7 @@
 from controller import Robot as Hardware
 from robot.process_sensors import Sensors
+from mapping.map import Map
+from navigation.RRT import RRT
 
 class Robot:
     '''
@@ -13,8 +15,10 @@ class Robot:
         self.current_tick = 0
 
         self.hardware = Hardware()
+
+        self.map = Map()
         
-        self.sensors = Sensors(hardware=self.hardware, time_step=self.time_step)
+        self.sensors = Sensors(hardware=self.hardware, time_step=self.time_step, map=self.map)
 
         #Left wheel
         self.wheel_left = self.hardware.getDevice("wheel1 motor")
@@ -30,6 +34,7 @@ class Robot:
 
         #Emmiter
         self.emitter = self.hardware.getDevice("emitter")
+        
     
     def speed(self, left_speed, right_speed):
         '''
@@ -77,9 +82,27 @@ class Robot:
         '''
         Runs a tick of the robot simulation
         '''
-        self.speed(0, 0)
+
+        self.speed(3, 3)
         self.sensors.update(self.current_tick)
 
+        if self.current_tick == self.calibration_timer+1:
+            self.rrt = RRT(self.map, self.sensors.last_gps)
+
+        [unexplored, graph] = self.rrt.explore(5)
+        if len(unexplored):
+            self.solve(unexplored[0], graph)
+            
+        '''if len(self.rrt_local):
+            # caminho
+        if len(self.walk_action) == 0:
+            while True:
+                if len(self.rrt_local) or len(self.rrt_global):
+                    #caminho
+                self.rrt.explore(5)
+        else:
+            # anda e chega se chegou'''
+        
         return
         
 

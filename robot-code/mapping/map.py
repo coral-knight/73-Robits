@@ -77,8 +77,11 @@ class Map:
         self.expand(point)
         self.seen(point)
 
-        # verificar se tem ponto perto
         mapx, mapy = self.real_to_map(point)
+
+        for v in self.map[mapx, mapy]:
+            if v != 0 and self.dist_coords(point, v) < 0.02:
+                return
         self.map[mapx, mapy].append(point)
 
         return
@@ -117,12 +120,18 @@ class Map:
 
     def seen(self, point):
         mapx, mapy = self.real_to_map(point)
-        map.seen_map[mapx, mapy] = 1
+        self.seen_map[mapx, mapy] = 1
 
         return
     
+
     def explored(self, point):
         mapx, mapy = self.real_to_map(point)
-        map.seen_map[mapx, mapy] = 3
+        self.seen_map[mapx, mapy] = 3
 
         return
+    
+
+    def dist_coords(self, a, b):
+        dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
+        return dist
