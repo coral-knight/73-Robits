@@ -40,15 +40,14 @@ class RRT:
         return point
 
 
-    def add_graph(self, point):
+    def add_graph(self, point, closest, pos):
         # adiciona 'point' para o 'closest': [ponto (coordenada), pai (posição)]
-        [closest, pos] = self.closest_point(point)
-        point = self.project_point(point, closest)
 
         if not self.wall_between(point, closest):
             self.graph.append([point, pos])
+            return True
 
-        return 
+        return False
 
 
     def explore(self, ticks):
@@ -58,11 +57,13 @@ class RRT:
             ticks -= 1
 
             point = self.random_point()
-            added = self.add_graph(point)
+            [closest, pos] = self.closest_point(point)
+            point = self.project_point(point, closest)
+            added = self.add_graph(point, closest, pos)
 
             if added:
                 map_p = self.map.real_to_map(point)
-                if map.seen_map[map_p[0], map_p[1]] == 0:
+                if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
                     unexplored.append([point, len(self.graph)-1]) # [ponto (coordenada), posição]
 
         return [unexplored, self.graph]
@@ -82,7 +83,7 @@ class RRT:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.04:
+                            if v != 0 and self.dist_coords(p, v) < 0.05:
                                 return True
                 
         return False

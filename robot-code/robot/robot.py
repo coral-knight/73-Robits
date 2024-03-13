@@ -2,6 +2,7 @@ from controller import Robot as Hardware
 from robot.process_sensors import Sensors
 from mapping.map import Map
 from navigation.RRT import RRT
+from navigation.navigation import Navigate
 
 class Robot:
     '''
@@ -18,15 +19,9 @@ class Robot:
 
         self.map = Map()
         
-        self.sensors = Sensors(hardware=self.hardware, time_step=self.time_step, map=self.map)
+        self.sensors = Sensors(self.hardware, self.time_step, self.map)
 
-        #Left wheel
-        self.wheel_left = self.hardware.getDevice("wheel1 motor")
-        self.wheel_left.setPosition(float("inf"))
-
-        #Right wheel
-        self.wheel_right = self.hardware.getDevice("wheel2 motor")
-        self.wheel_right.setPosition(float("inf"))
+        self.navigate = Navigate(self.hardware, self.sensors)
         
         #Receiver
         self.receiver = self.hardware.getDevice("receiver")
@@ -34,15 +29,9 @@ class Robot:
 
         #Emmiter
         self.emitter = self.hardware.getDevice("emitter")
-        
-    
-    def speed(self, left_speed, right_speed):
-        '''
-        Sets the wheels rotationals speeds
-        '''
-        self.wheel_left.setVelocity(left_speed)
-        self.wheel_right.setVelocity(right_speed)
-        return
+
+        self.exploring = False
+
 
     def send_victim(self, victim_position, victim_type):
         '''
@@ -52,6 +41,7 @@ class Robot:
         #self.emitter.send(message)
         return
 
+
     def send_endgame(self, map):
         '''
         Sends endgame message and map to server
@@ -59,6 +49,7 @@ class Robot:
         #message = struct.pack("i i c", int((self.final_coords[0]+initial_gps[0])*100), int((self.final_coords[1]+initial_gps[1])*100), victim_type)
         #self.emitter.send(message)        
         return 
+
 
     def run_calibration(self):
         '''
@@ -71,27 +62,44 @@ class Robot:
         self.sensors.update_gps()
 
         if self.current_tick < 5:
-            self.speed(2, 2)
+            self.navigate.speed(2, 2)
         elif self.current_tick == 5:
             self.sensors.calibrate_gyro()
         else:
-            self.speed(-2, -2)
+            self.navigate.speed(-2, -2)
         return
+
 
     def run_simulation(self):
         '''
         Runs a tick of the robot simulation
         '''
+        print("=========================")
 
-        self.speed(3, 3)
         self.sensors.update(self.current_tick)
+        if self.current_tick < 30:
+            self.navigate.speed(0,0)
+            return
 
-        if self.current_tick == self.calibration_timer+1:
+        print("exploring:", self.navigate.exploring)
+
+        if not self.navigate.exploring:
+            self.navigate.speed(0,0)
             self.rrt = RRT(self.map, self.sensors.last_gps)
 
-        [unexplored, graph] = self.rrt.explore(5)
-        if len(unexplored):
-            self.solve(unexplored[0], graph)
+            print("new RRT")
+
+            [unexplored, graph] = self.rrt.explore(5)
+            while len(unexplored) == 0:
+                print("while no unexplored")
+                [unexplored, graph] = self.rrt.explore(5)
+            
+            self.navigate.solve(unexplored[0], graph)
+
+        if self.navigate.exploring:
+            self.navigate.navigate()
+
+
             
         '''if len(self.rrt_local):
             # caminho

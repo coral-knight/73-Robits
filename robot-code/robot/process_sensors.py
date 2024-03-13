@@ -49,6 +49,12 @@ class Sensors:
         if current_tick % 5 == 0:
             self.process_lidar.update(self.front_gps, self.last_gyro)
 
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                self.map.explored([self.last_gps[0]+i*0.02, self.last_gps[0]+j*0.02])
+
+        self.map.to_png_explored()
+
         # ve as cameras
 
         return
