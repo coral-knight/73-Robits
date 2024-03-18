@@ -51,7 +51,7 @@ class Sensors:
 
         for i in range(-1, 2):
             for j in range(-1, 2):
-                self.map.explored([self.last_gps[0]+i*0.02, self.last_gps[0]+j*0.02])
+                self.map.explored([self.last_gps[0]+i*0.02, self.last_gps[1]+j*0.02])
 
         self.map.to_png_explored()
 

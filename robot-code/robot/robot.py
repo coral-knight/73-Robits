@@ -74,25 +74,28 @@ class Robot:
         '''
         Runs a tick of the robot simulation
         '''
-        print("=========================")
+        #print("=========================")
 
         self.sensors.update(self.current_tick)
         if self.current_tick < 30:
             self.navigate.speed(0,0)
             return
 
-        print("exploring:", self.navigate.exploring)
+        #print("exploring:", self.navigate.exploring)
 
         if not self.navigate.exploring:
             self.navigate.speed(0,0)
             self.rrt = RRT(self.map, self.sensors.last_gps)
 
+            print("-----------------")
             print("new RRT")
 
-            [unexplored, graph] = self.rrt.explore(5)
+            unexplored = []
             while len(unexplored) == 0:
-                print("while no unexplored")
+                #print("while no unexplored")
                 [unexplored, graph] = self.rrt.explore(5)
+
+            print("found unexplored")
             
             self.navigate.solve(unexplored[0], graph)
 

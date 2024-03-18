@@ -87,11 +87,29 @@ class Map:
         return
     
 
+    def seen(self, point):
+        mapx, mapy = self.real_to_map(point)
+        if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
+            if self.seen_map[mapx, mapy] == 0:
+                self.seen_map[mapx, mapy] = 1
+
+        return
+    
+
+    def explored(self, point):
+        mapx, mapy = self.real_to_map(point)
+        if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
+            self.seen_map[mapx, mapy] = 3
+
+        return
+    
+    
     def print(self):
         for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
                 print(self.map[x, y], end=" ")
             print(" ")
+
 
     def print_tile_map(self):
         # qnt_pontos = 1 # Quantidade de pontos dentro de um tile para ser considerado parede
@@ -128,6 +146,13 @@ class Map:
         return
     
 
+    def print_seen(self):
+        for y in range(np.size(self.seen_map, 1)):
+            for x in range(np.size(self.seen_map, 0)):
+                print(self.seen_map[x, y], end=" ")
+            print(" ")
+    
+
     def to_png(self):
         transpose = np.zeros([np.size(self.map, 1), np.size(self.map, 0)])
 
@@ -143,37 +168,8 @@ class Map:
         return 
     
 
-    def seen(self, point):
-        mapx, mapy = self.real_to_map(point)
-        if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
-            if self.seen_map[mapx, mapy] == 0:
-                self.seen_map[mapx, mapy] = 1
-
-        return
-    
-
-    def explored(self, point):
-        mapx, mapy = self.real_to_map(point)
-        print("explored", mapx, mapy)
-        print(np.size(self.seen_map, 0), np.size(self.seen_map, 1))
-        if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
-            print("aqui")
-            self.seen_map[mapx, mapy] = 3
-
-        return
-    
-
-    def print_seen(self):
-        for y in range(np.size(self.seen_map, 1)):
-            for x in range(np.size(self.seen_map, 0)):
-                print(self.seen_map[x, y], end=" ")
-            print(" ")
-    
-
     def to_png_explored(self):
         transpose = np.zeros([np.size(self.seen_map, 1), np.size(self.seen_map, 0)])
-
-        self.print_seen()
 
         for y in range(np.size(self.seen_map, 1)):
             for x in range(np.size(self.seen_map, 0)):

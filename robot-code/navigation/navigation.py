@@ -32,8 +32,8 @@ class Navigate:
         delta_angle = ang-self.sensors.last_gyro
 
         if abs(delta_angle) >= 0.05:
-            print("rotating", delta_angle)
-            print(ang, self.sensors.last_gyro)
+            #print("rotating", delta_angle)
+            #print(ang, self.sensors.last_gyro)
 
             while delta_angle < -math.pi:
                 delta_angle = delta_angle + 2*math.pi
@@ -45,9 +45,9 @@ class Navigate:
                 self.speed(-self.turn_velocity, self.turn_velocity)
         
         else:
-            print("walking", point)
-            print(self.sensors.last_gps)
-            print(self.dist_coords(self.sensors.last_gps, point))
+            #print("walking", point)
+            #print(self.sensors.last_gps)
+            #print(self.dist_coords(self.sensors.last_gps, point))
 
             if self.dist_coords(self.sensors.last_gps, point) > 0.005:
                 self.speed(self.velocity, self.velocity)
@@ -58,7 +58,7 @@ class Navigate:
 
 
     def navigate(self):
-        print("navigating")
+        #print("navigating")
 
         if len(self.action_list) == 0:
             self.exploring = False
@@ -74,13 +74,13 @@ class Navigate:
 
 
     def make_list(self, point):
-        print("append walk_to", point)
+        #print("append walk_to", point)
         self.action_list.append(["Walk To", point])
         return
 
     
     def solve(self, point, graph):
-        print("solve para", point)
+        #print("solve para", point)
 
         self.exploring = True
 
