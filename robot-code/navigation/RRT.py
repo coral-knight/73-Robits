@@ -6,17 +6,19 @@ class RRT:
 
     def __init__(self, map, pos):
         self.map = map 
-        #self.graph = [[pos, 0]]
 
         self.size = [2, 2]
         self.resolution = 0.06
-        self.range_x = [-self.resolution, self.resolution]
-        self.range_y = [-self.resolution, self.resolution]
+        self.range_x = [pos[0]-self.resolution, pos[0]+self.resolution]
+        self.range_y = [pos[1]-self.resolution, pos[1]+self.resolution]
 
+        # graph[x,y] = [ [ [i,j] , [ [x,y], 0] ],...] -> [[coordenada], [[tile do pai], posição dentro do tile do pai]]
         self.graph = np.empty(self.size, dtype=object)
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
+        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0,0], 0]])
+        print("adicionei o inicial no", self.real_to_map(pos))
 
 
     def graph_expand(self, point):
@@ -31,7 +33,7 @@ class RRT:
         if point[0] > self.range_x[1]: 
             dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution)
             while dif_map_x:
-                self.graph = np.insert(self.graph, np.size(self.magraphp, 0), None, axis=0)
+                self.graph = np.insert(self.graph, np.size(self.graph, 0), None, axis=0)
                 for y in range(np.size(self.graph, 1)): self.graph[np.size(self.graph, 0)-1, y] = [0]
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
@@ -53,6 +55,18 @@ class RRT:
                 dif_map_y = dif_map_y - 1
 
         return 
+    
+
+    def real_to_map(self, real_point):
+
+        return [math.floor((real_point[0]-self.range_x[0])/self.resolution),
+                math.floor((real_point[1]-self.range_y[0])/self.resolution)]
+        
+
+    def map_to_real(self, map_point):
+        
+        return [self.range_x[0]+map_point[0]*self.resolution+self.resolution/2,
+                self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
     def random_point(self):
@@ -66,23 +80,32 @@ class RRT:
         return [x, y]
 
 
-    def closest_point(self, point):
-        closest = [1000,1000]
-        pos = 0
-        cont = 0
-
+    def closest_point(self, point): # ===============
         mapx, mapy = self.real_to_map(point)
+        #print("ponto no", mapx, mapy)
+
+        closest = [1000,1000]
+        pos = [[0,0], 0]
         depth = 0
-        # achar closest e pensar no q fazer com o pos dele
-        #closest = 
-        #while
 
-        for v in self.graph:
-            if self.dist_coords(closest, point) > self.dist_coords(v[0], point):
-                closest = v[0]
-                pos = cont
-            cont += 1
+        c = 0
+        while closest == [1000,1000] and c < 50:
+            c+=1
+            #print("closest while", depth)
+            for y in range(mapy-depth, mapy+depth+1):
+                for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
+                    #print("tiles", x, y)
+                    if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
+                        cont = 0
+                        for v in self.graph[x, y]:
+                            #print(x, y, ":", v)
+                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point):
+                                closest = v[0]
+                                pos = [[x, y], cont]
+                            cont += 1
+            depth += 1
 
+        #print("closest", closest, pos)
         return [closest, pos]
 
 
@@ -96,9 +119,10 @@ class RRT:
 
     def add_graph(self, point, closest, pos):
         # adiciona 'point' para o 'closest': [ponto (coordenada), pai (posição)]
+        mapx, mapy = self.real_to_map(point)
 
         if not self.wall_between(closest, point):
-            self.graph.append([point, pos])
+            self.graph[mapx, mapy].append([point, pos])
             return True
 
         return False
@@ -112,13 +136,16 @@ class RRT:
 
             point = self.random_point()
             [closest, pos] = self.closest_point(point)
+            if closest == [1000,1000]: return [[], []]
             point = self.project_point(point, closest)
             added = self.add_graph(point, closest, pos)
 
             if added:
                 map_p = self.map.real_to_map(point)
+                # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
                 if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
-                    unexplored.append([point, len(self.graph)-1]) # [ponto (coordenada), posição]
+                    mapx, mapy = self.real_to_map(point)
+                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
         return [unexplored, self.graph]
 

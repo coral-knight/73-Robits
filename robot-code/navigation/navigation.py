@@ -22,6 +22,7 @@ class Navigate:
 
 
     def speed(self, left_speed, right_speed):
+        
         self.wheel_left.setVelocity(left_speed)
         self.wheel_right.setVelocity(right_speed)
         return
@@ -79,15 +80,28 @@ class Navigate:
         return
 
     
-    def solve(self, point, graph):
+    def solve(self, unexplored, graph):
         #print("solve para", point)
 
         self.exploring = True
+        point = unexplored[0]
+        pos = unexplored[1]
 
         walk_list = []
-        while(self.dist_coords(self.sensors.last_gps, point[0]) > 0.05):
-            walk_list.append(graph[point[1]][0])
-            point = [graph[graph[point[1]][1]][0], graph[point[1]][1]] # [coords do pai, pos do pai]
+        while self.dist_coords(self.sensors.last_gps, point) > 0.05:
+            print("back", point, pos)
+
+            walk_list.append(point)
+            print(pos[0])
+            print(graph[pos[0][0]])
+            print(graph[pos[0][0]][pos[0][1]])
+            print(graph[pos[0]])
+
+            # A POSIÇÂO DENTRO DO GRAFO MUDA SE PEGAMOS MAIS PONTOS
+
+            pos[0] = graph[pos[0]][pos[1]][1][0]
+            pos[1] = graph[pos[0]][pos[1]][1][1]
+            point = graph[pos[0]][pos[1]][0] # coordenadas do pai
 
         for i in range(len(walk_list)-1, -1, -1):
             self.make_list(walk_list[i])
