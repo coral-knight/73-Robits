@@ -94,6 +94,7 @@ class Robot:
             unexplored = []
             while len(unexplored) == 0:
                 #print("while no unexplored")
+                print("========================================================================")
                 [unexplored, graph] = self.rrt.explore(5)
 
             print("found unexplored")

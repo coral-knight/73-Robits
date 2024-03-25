@@ -98,9 +98,8 @@ class RRT:
                         for v in self.graph[x, y]:
                             #print(x, y, ":", v)
                             if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point):
-                                if not self.wall_between(v[0], point):
-                                    closest = v[0]
-                                    pos = [[x, y], cont]
+                                closest = v[0]
+                                pos = [[x, y], cont]
                             cont += 1
             depth += 1
 
@@ -116,12 +115,15 @@ class RRT:
         return point
 
 
-    def add_graph(self, point, pos):
+    def add_graph(self, point, closest, pos):
         # adiciona 'point' para o 'closest': [ponto (coordenada), pai (posição)]
         mapx, mapy = self.real_to_map(point)
-        self.graph[mapx, mapy].append([point, pos])
 
-        return 
+        if not self.wall_between(closest, point):
+            self.graph[mapx, mapy].append([point, pos])
+            return True
+
+        return False
 
 
     def explore(self, ticks):
@@ -136,13 +138,14 @@ class RRT:
             [closest, pos] = self.closest_point(point)
             if closest == [1000,1000]: return [[], []]
             point = self.project_point(point, closest)
-            self.add_graph(point, pos)
+            added = self.add_graph(point, closest, pos)
 
-            map_p = self.map.real_to_map(point)
-            # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
-            if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
-                mapx, mapy = self.real_to_map(point)
-                unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
+            if added:
+                map_p = self.map.real_to_map(point)
+                # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
+                if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
+                    mapx, mapy = self.real_to_map(point)
+                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
         return [unexplored, self.graph]
 

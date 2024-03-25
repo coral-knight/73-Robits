@@ -76,30 +76,70 @@ class RRTStar:
         x = self.range_x[0]*x_percent + self.range_x[1]*(1-x_percent)
         y = self.range_y[0]*y_percent + self.range_y[1]*(1-y_percent)
         return [x, y]
+    
+    def closest_point(self, point): # ===============
+        mapx, mapy = self.real_to_map(point)
+        #print("ponto no", mapx, mapy)
+
+        
+
+        closest = [1000,1000]
+        depth = 0
+
+        c = 0
+        while closest == [1000,1000] and c < 50:
+            c+=1
+            #print("closest while", depth)
+            for y in range(mapy-depth, mapy+depth+1):
+                for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
+                    #print("tiles", x, y)
+                    if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
+                        for v in self.graph[x, y]:
+                            #print(x, y, ":", v)
+                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point):
+                                closest = v[0]
+            depth += 1
 
 
-    def add_point(self, point): # ===============
+        print(" ")
+        print("=== Closest to", point, closest)
+        #print("closest", closest, pos)
+        return closest
+
+
+    def project_point(self, point, closest):
+        min_dist = 0.08
+        if self.dist_coords(point, closest) > min_dist:
+            ang = math.atan2(point[1]-closest[1], point[0]-closest[0])
+            point = [closest[0]+min_dist*math.cos(ang), closest[1]+min_dist*math.sin(ang)]
+
+        print("= Projected", point)
+        return point
+
+
+    def add_graph(self, point): # ===============
         # Find points with a distance from 'point' less than 'radius' and 
         mapx, mapy = self.real_to_map(point)
-        #print(" ")
-        #print("=== Adding", point)
+        print(" ")
+        print("=== Adding", point)
 
-        radius = 0.12
+        radius = 0.09
         neighbours = []
-        parent = [1000,1000]
-        pos = [[0, 0], 0]
+        parent = [1000, 1000]
+        pos = [[0,0], 0]
         dist = 1000
         
         # Find neighbours
         depth = 0
-        while depth < int(radius/self.resolution):
+        while depth < int(radius/self.resolution)+1:
+            print("depth", depth)
             for y in range(mapy-depth, mapy+depth+1):
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         cont = 0
                         for v in self.graph[x, y]:
                             if v != 0 and self.dist_coords(v[0], point) <= radius and not self.wall_between(v[0], point):
-                                #print("point in neighbourhood", v)
+                                print("point in neighbourhood", v)
                                 neighbours.append([v, cont])
                                 if v[2] + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
@@ -108,8 +148,8 @@ class RRTStar:
                             cont += 1
             depth += 1
 
-        #print("= Parent", parent)
-        #print("pos and dist", pos, dist)
+        print("= Parent", parent)
+        print("pos and dist", pos, dist)
 
         # Add 'point' to graph 
         if parent == [1000, 1000]: return parent
@@ -119,13 +159,13 @@ class RRTStar:
         for v in neighbours:
             [p, c] = v
             if p[0] != parent and dist + self.dist_coords(point, p[0]) < p[2]:
-                #print("= Updating dist for", v)
-                #print("new dist", dist + self.dist_coords(point, p[0]))
+                print("= Updating dist for", v)
+                print("new dist", dist + self.dist_coords(point, p[0]))
                 x, y = self.real_to_map(p[0])
                 self.graph[x][y][c][1] = [[mapx, mapy], len(self.graph[mapx, mapy])-1]
                 self.graph[x][y][c][2] = dist + self.dist_coords(point, p[0])
 
-        ##print("closest", closest, pos)
+        #print("closest", closest, pos)
         return parent
 
 
@@ -138,12 +178,16 @@ class RRTStar:
             ticks -= 1
 
             point = self.random_point()
-            parent = self.add_point(point)
+            closest = self.closest_point(point)
+            point = self.project_point(point, closest)
+            parent = self.add_graph(point)
             if parent == [1000,1000]: return [[], []]
 
             map_p = self.map.real_to_map(point)
             # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
+            print("ponto possivel", point)
             if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
+                print("============================== inesplorado")
                 mapx, mapy = self.real_to_map(point)
                 unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
