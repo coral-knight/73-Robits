@@ -2,6 +2,7 @@ from controller import Robot as Hardware
 from robot.process_sensors import Sensors
 from mapping.map import Map
 from navigation.RRT import RRT
+from navigation.RRTStar import RRTStar
 from navigation.navigation import Navigate
 
 class Robot:
@@ -85,7 +86,7 @@ class Robot:
 
         if not self.navigate.exploring:
             self.navigate.speed(0,0)
-            self.rrt = RRT(self.map, self.sensors.last_gps)
+            self.rrt = RRTStar(self.map, self.sensors.last_gps)
 
             print("------------------------------------")
             print("new RRT")

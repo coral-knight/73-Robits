@@ -112,27 +112,49 @@ class Map:
 
 
     def print_tile_map(self):
-        # qnt_pontos = 1 # Quantidade de pontos dentro de um tile para ser considerado parede
+        self.add_point([0, 0])
         # divide cada tile por 3x3
         
         # Tam do tile: 0.12
+        # Mapa aux para na hora de printar
         mapa_imprime = np.empty([self.size[0]*4 +1, self.size[1]*4 +1], dtype=object)
-        for y in range(np.size(self.map, 1)):
-            for x in range(np.size(self.map, 0)):
+        
+        # cada elemento na matrix representa meio tile
+        for y in range(0, np.size(self.map, 1), 2): # começa no 0, termina no np.size(...), e vai indo de 2 em 2
+            for x in range(0, np.size(self.map, 0), 2):
+                # Para cada tile, deixo 3x3 para ver em que parte do tile fica as paredes
                 tile_walls = np.empty([3, 3], dtype=object)
-                tile_range_x = [self.range_x[0] + 0.12*x, self.range_x[0] + 0.12*(x+1)]
-                tile_range_y = [self.range_y[0] + 0.12*y, self.range_y[0] + 0.12*(y+1)]
-                for [coordX, coordY] in map[x, y]:
+                # Range do tile
+                tile_range_x = [self.range_x[0] + 0.06*x, self.range_x[0] + 0.06*(x+2)]
+                tile_range_y = [self.range_y[0] + 0.06*y, self.range_y[0] + 0.06*(y+2)]
+                print("Tile Range: ", tile_range_x, tile_range_y)
+
+                # Para cada ponto no map
+                pontos_de_tiles_juntados = np.concatenate(self.map[x, y], self.map[x+1, y], self.map[x, y+1], self.map[x+1, y+1], axis = 0)
+                for point in pontos_de_tiles_juntados:
+                    # Ignora os casos que da 0
+                    if point == 0:
+                        continue
+                    # Coordenada X e Coordenada Y do ponto
+                    coordX = point[0]
+                    coordY = point[1]
+                    print("Coord antes de mudar:", coordX, coordY)
+                    # Subtrai o início do tile, pq quero só a coordenada em relação ao tile, e n ao mapa
                     coordX -= tile_range_x[0]
                     coordY -= tile_range_y[0]
-                    tile_walls[math.floor(coordX/0.12*3), math.floor(coordY/0.12*3)] = 1
+                    print("Coords: ", coordX, coordY)
+                    # 0.12 é o tamanho do tile, ent divido ele por 0.12(coordenada vai variar de 0 a 1) e multiplico por 3(varia de 0 a 3)
+                    # aí marca essa posição como parede no tile
+                    print("Marcando tiles:", math.min(2, math.floor(coordX/0.12*3)), math.min(2, math.floor(coordY/0.12*3)))
+                    # tile_walls[math.min(2, math.floor(coordX/0.12*3)), math.min(2, math.floor(coordY/0.12*3))] = 1
                 # atualiza no mapa_imprime
-                for aux_y in [0, 1, 2]: # pula a casa central
+                for aux_y in [0, 1, 2]:
                     for aux_x in [0, 1, 2]:
-                        if aux_x != 1 or aux_y != 1:
+                        if aux_x != 1 or aux_y != 1: # Pula a casa central
                             mapa_imprime[2*x + aux_x+1, 2*y + aux_y+1] = tile_walls[aux_x, aux_y]
 
         for i in range(np.size(mapa_imprime, 1)):
+            print("--- Printando mapa ---")
             print(mapa_imprime[i], end=" ")
             print(" ")
 
