@@ -87,7 +87,7 @@ class Robot:
             self.navigate.speed(0,0)
             self.rrt = RRT(self.map, self.sensors.last_gps)
 
-            print("-----------------")
+            print("------------------------------------")
             print("new RRT")
 
             unexplored = []
@@ -96,6 +96,7 @@ class Robot:
                 [unexplored, graph] = self.rrt.explore(5)
 
             print("found unexplored")
+            print(unexplored[0])
             
             self.navigate.solve(unexplored[0], graph)
 

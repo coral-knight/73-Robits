@@ -89,19 +89,10 @@ class Navigate:
 
         walk_list = []
         while self.dist_coords(self.sensors.last_gps, point) > 0.05:
-            print("back", point, pos)
-
             walk_list.append(point)
-            print(pos[0])
-            print(graph[pos[0][0]])
-            print(graph[pos[0][0]][pos[0][1]])
-            print(graph[pos[0]])
 
-            # A POSIÇÂO DENTRO DO GRAFO MUDA SE PEGAMOS MAIS PONTOS
-
-            pos[0] = graph[pos[0]][pos[1]][1][0]
-            pos[1] = graph[pos[0]][pos[1]][1][1]
-            point = graph[pos[0]][pos[1]][0] # coordenadas do pai
+            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of 'pai'
+            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordenates of 'pai'
 
         for i in range(len(walk_list)-1, -1, -1):
             self.make_list(walk_list[i])

@@ -18,7 +18,6 @@ class RRT:
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
         self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0,0], 0]])
-        print("adicionei o inicial no", self.real_to_map(pos))
 
 
     def graph_expand(self, point):
@@ -74,9 +73,8 @@ class RRT:
         random.seed()
         x_percent = random.random()
         y_percent = random.random()
-        x = self.map.range_x[0]*x_percent + self.map.range_x[1]*(1-x_percent)
-        y = self.map.range_y[0]*y_percent + self.map.range_y[1]*(1-y_percent)
-        self.graph_expand([x, y])
+        x = self.range_x[0]*x_percent + self.range_x[1]*(1-x_percent)
+        y = self.range_y[0]*y_percent + self.range_y[1]*(1-y_percent)
         return [x, y]
 
 
@@ -130,6 +128,8 @@ class RRT:
 
     def explore(self, ticks):
         unexplored = []
+        self.graph_expand([self.map.range_x[0]+0.03, self.map.range_y[0]-0.03])
+        self.graph_expand([self.map.range_x[1]+0.03, self.map.range_y[1]-0.03])
 
         while ticks > 0:
             ticks -= 1
