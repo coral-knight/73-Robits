@@ -75,7 +75,7 @@ class Navigate:
 
 
     def make_list(self, point):
-        #print("append walk_to", point)
+        print("append walk_to", point)
         self.action_list.append(["Walk To", point])
         return
 

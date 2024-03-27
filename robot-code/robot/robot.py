@@ -4,6 +4,7 @@ from mapping.map import Map
 from navigation.RRT import RRT
 from navigation.RRTStar import RRTStar
 from navigation.navigation import Navigate
+import numpy as np
 
 class Robot:
     '''
@@ -94,20 +95,37 @@ class Robot:
             unexplored = []
             while len(unexplored) == 0:
                 #print("while no unexplored")
-                print("========================================================================")
+                #print("========================================================================")
                 [unexplored, graph] = self.rrt.explore(5)
 
             print("found unexplored")
             print(unexplored[0])
+
+            '''
+            [unexplored, graph] = self.rrt.explore(25)
+
+            print("--------")
+            for x in range(np.size(graph, 0)):
+                print("[", end = " ")
+                for y in range(np.size(graph, 1)):
+                    print(graph[x][y], end = "")
+                    if y != np.size(graph, 1)-1:
+                        print(",", end = " ")
+                if x != np.size(graph, 0)-1:
+                    print("]", end = "")
+                    print(",", end = " ")
+                else:
+                    print("]")
+            print("--------")
+            '''
             
             self.navigate.solve(unexplored[0], graph)
 
         if self.navigate.exploring:
             self.navigate.navigate()
 
-
-            
-        '''if len(self.rrt_local):
+        '''
+        if len(self.rrt_local):
             # caminho
         if len(self.walk_action) == 0:
             while True:
@@ -115,7 +133,8 @@ class Robot:
                     #caminho
                 self.rrt.explore(5)
         else:
-            # anda e chega se chegou'''
+            # anda e chega se chegou
+        '''
         
         return
         

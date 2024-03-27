@@ -101,8 +101,8 @@ class RRTStar:
             depth += 1
 
 
-        print(" ")
-        print("=== Closest to", point, closest)
+        #print(" ")
+        #print("=== Closest to", point, closest)
         #print("closest", closest, pos)
         return closest
 
@@ -113,17 +113,17 @@ class RRTStar:
             ang = math.atan2(point[1]-closest[1], point[0]-closest[0])
             point = [closest[0]+min_dist*math.cos(ang), closest[1]+min_dist*math.sin(ang)]
 
-        print("= Projected", point)
+        #print("= Projected", point)
         return point
 
 
     def add_graph(self, point): # ===============
         # Find points with a distance from 'point' less than 'radius' and 
         mapx, mapy = self.real_to_map(point)
-        print(" ")
-        print("=== Adding", point)
+        #print(" ")
+        #print("=== Adding", point)
 
-        radius = 0.09
+        radius = 0.12
         neighbours = []
         parent = [1000, 1000]
         pos = [[0,0], 0]
@@ -132,14 +132,14 @@ class RRTStar:
         # Find neighbours
         depth = 0
         while depth < int(radius/self.resolution)+1:
-            print("depth", depth)
+            #print("depth", depth)
             for y in range(mapy-depth, mapy+depth+1):
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         cont = 0
                         for v in self.graph[x, y]:
                             if v != 0 and self.dist_coords(v[0], point) <= radius and not self.wall_between(v[0], point):
-                                print("point in neighbourhood", v)
+                                #print("point in neighbourhood", v)
                                 neighbours.append([v, cont])
                                 if v[2] + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
@@ -148,8 +148,8 @@ class RRTStar:
                             cont += 1
             depth += 1
 
-        print("= Parent", parent)
-        print("pos and dist", pos, dist)
+        #print("= Parent", parent)
+        #print("pos and dist", pos, dist)
 
         # Add 'point' to graph 
         if parent == [1000, 1000]: return parent
@@ -159,8 +159,8 @@ class RRTStar:
         for v in neighbours:
             [p, c] = v
             if p[0] != parent and dist + self.dist_coords(point, p[0]) < p[2]:
-                print("= Updating dist for", v)
-                print("new dist", dist + self.dist_coords(point, p[0]))
+                #print("= Updating dist for", v)
+                #print("new dist", dist + self.dist_coords(point, p[0]))
                 x, y = self.real_to_map(p[0])
                 self.graph[x][y][c][1] = [[mapx, mapy], len(self.graph[mapx, mapy])-1]
                 self.graph[x][y][c][2] = dist + self.dist_coords(point, p[0])
@@ -181,16 +181,17 @@ class RRTStar:
             closest = self.closest_point(point)
             point = self.project_point(point, closest)
             parent = self.add_graph(point)
-            if parent == [1000,1000]: return [[], []]
+            if parent == [1000,1000]: continue
 
             map_p = self.map.real_to_map(point)
             # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
-            print("ponto possivel", point)
-            if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
-                print("============================== inesplorado")
+            #print("ponto possivel", point)
+            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
+                #print("============================== inesplorado")
                 mapx, mapy = self.real_to_map(point)
                 unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
+        #print("len unexplored, end explore", len(unexplored))
         return [unexplored, self.graph]
 
 
