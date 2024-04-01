@@ -22,7 +22,7 @@ class RRTStar:
 
     def graph_expand(self, point):
         if point[0] < self.range_x[0]:
-            dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution)
+            dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution) + 1
             while dif_map_x:
                 self.graph = np.insert(self.graph, 0, None, axis=0)
                 for y in range(np.size(self.graph, 1)): self.graph[0, y] = [0]
@@ -30,7 +30,7 @@ class RRTStar:
                 dif_map_x = dif_map_x - 1
 
         if point[0] > self.range_x[1]: 
-            dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution)
+            dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution) + 1
             while dif_map_x:
                 self.graph = np.insert(self.graph, np.size(self.graph, 0), None, axis=0)
                 for y in range(np.size(self.graph, 1)): self.graph[np.size(self.graph, 0)-1, y] = [0]
@@ -38,7 +38,7 @@ class RRTStar:
                 dif_map_x = dif_map_x - 1
 
         if point[1] < self.range_y[0]: 
-            dif_map_y = math.ceil((self.range_y[0] - point[1])/self.resolution)
+            dif_map_y = math.ceil((self.range_y[0] - point[1])/self.resolution) + 1
             while dif_map_y:
                 self.graph = np.insert(self.graph, 0, None, axis=1)
                 for x in range(np.size(self.graph, 0)): self.graph[x, 0] = [0]
@@ -46,7 +46,7 @@ class RRTStar:
                 dif_map_y = dif_map_y - 1
 
         if point[1] > self.range_y[1]: 
-            dif_map_y = math.ceil((point[1] - self.range_y[1])/self.resolution)
+            dif_map_y = math.ceil((point[1] - self.range_y[1])/self.resolution) + 1
             while dif_map_y:
                 self.graph = np.insert(self.graph, np.size(self.graph, 1), None, axis=1)
                 for x in range(np.size(self.graph, 0)): self.graph[x, np.size(self.graph, 1)-1] = [0]
@@ -186,10 +186,11 @@ class RRTStar:
             map_p = self.map.real_to_map(point)
             # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
             #print("ponto possivel", point)
-            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
-                #print("============================== inesplorado")
-                mapx, mapy = self.real_to_map(point)
-                unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
+            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1):
+                if self.map.seen_map[map_p[0], map_p[1]] == 0:
+                    #print("============================== inesplorado")
+                    mapx, mapy = self.real_to_map(point)
+                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
         #print("len unexplored, end explore", len(unexplored))
         return [unexplored, self.graph]
@@ -203,8 +204,11 @@ class RRTStar:
     def wall_between(self, a, b):
         # Can the robot go safely from a to b?
 
-        for i in range(20): 
-            p = [((19-i)*a[0]+i*b[0])/19, ((19-i)*a[1]+i*b[1])/19]
+        d = int(self.dist_coords(a, b)/0.06)*3
+        if d == 0: return False
+        
+        for i in range(d+1): 
+            p = [((d-i)*a[0]+i*b[0])/d, ((d-i)*a[1]+i*b[1])/d]
             map_p = self.map.real_to_map(p)
 
             for x in range(-1, 2):

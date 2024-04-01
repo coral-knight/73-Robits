@@ -23,7 +23,7 @@ class Robot:
         
         self.sensors = Sensors(self.hardware, self.time_step, self.map)
 
-        self.navigate = Navigate(self.hardware, self.sensors)
+        self.navigate = Navigate(self.hardware, self.sensors, self.map)
         
         #Receiver
         self.receiver = self.hardware.getDevice("receiver")
