@@ -205,7 +205,7 @@ class RRTStar:
         # Can the robot go safely from a to b?
 
         d = int(self.dist_coords(a, b)/0.06)*3
-        if d == 0: return False
+        if d == 0: d = 1
         
         for i in range(d+1): 
             p = [((d-i)*a[0]+i*b[0])/d, ((d-i)*a[1]+i*b[1])/d]

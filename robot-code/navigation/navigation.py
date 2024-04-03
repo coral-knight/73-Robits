@@ -55,6 +55,7 @@ class Navigate:
             if self.dist_coords(self.sensors.last_gps, point) > 0.005:
                 self.speed(self.velocity, self.velocity)
             else:
+                print("terminou andar")
                 self.action_list.pop(0)
 
         return
@@ -73,7 +74,7 @@ class Navigate:
             if name == "Walk To":
                 if self.wall_between(self.sensors.last_gps, action):
                     self.exploring = False
-                    print("tinha parede no caminho que eu n vi")
+                    print("tinha parede no caminho que eu n vi", action)
                     self.action_list = []
                     return
                 
@@ -89,8 +90,8 @@ class Navigate:
     
 
     def path_smoothing(self):
-        p, v = 0, 1
-        aux_list = [["Walk To", self.action_list[0][1]]]
+        p, v = 0, 0
+        aux_list = [["Walk To", self.sensors.last_gps]]
 
         while v != len(self.action_list):
             print("smoothing", p, v)
@@ -98,11 +99,12 @@ class Navigate:
             if not self.wall_between(a, b):
                 v += 1
             else:
+                if p == v-1: return
                 aux_list.append(self.action_list[v-1])
                 p = v-1
 
         aux_list.append(self.action_list[v-1])
-        self.action_list = aux_list
+        self.action_list = aux_list[1:]
 
         return
     
@@ -149,6 +151,7 @@ class Navigate:
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
                             if v != 0 and self.dist_coords(p, v) < 0.0378:
+                                print("parede", v, self.dist_coords(p, v))
                                 return True
                 
         return False

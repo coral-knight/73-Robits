@@ -53,7 +53,7 @@ class Sensors:
             for j in range(-1, 2):
                 self.map.explored([self.last_gps[0]+i*0.02, self.last_gps[1]+j*0.02])
 
-        self.map.to_png_explored()
+        self.map.to_png_seen()
 
         # ve as cameras
 

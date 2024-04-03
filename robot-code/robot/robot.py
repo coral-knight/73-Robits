@@ -93,33 +93,39 @@ class Robot:
             print("new RRT")
 
             unexplored = []
-            while len(unexplored) == 0:
+            cont = 0
+            while len(unexplored) == 0 and cont < 1000:
                 #print("while no unexplored")
                 #print("========================================================================")
                 [unexplored, graph] = self.rrt.explore(5)
+                cont += 1
+            if cont == 1000: 
+                print("n achou nada")
+                
 
-            print("found unexplored")
-            print(unexplored[0])
+            else:
+                print("found unexplored")
+                print(unexplored[0])
 
-            '''
-            [unexplored, graph] = self.rrt.explore(25)
+                '''
+                [unexplored, graph] = self.rrt.explore(25)
 
-            print("--------")
-            for x in range(np.size(graph, 0)):
-                print("[", end = " ")
-                for y in range(np.size(graph, 1)):
-                    print(graph[x][y], end = "")
-                    if y != np.size(graph, 1)-1:
+                print("--------")
+                for x in range(np.size(graph, 0)):
+                    print("[", end = " ")
+                    for y in range(np.size(graph, 1)):
+                        print(graph[x][y], end = "")
+                        if y != np.size(graph, 1)-1:
+                            print(",", end = " ")
+                    if x != np.size(graph, 0)-1:
+                        print("]", end = "")
                         print(",", end = " ")
-                if x != np.size(graph, 0)-1:
-                    print("]", end = "")
-                    print(",", end = " ")
-                else:
-                    print("]")
-            print("--------")
-            '''
-            
-            self.navigate.solve(unexplored[0], graph)
+                    else:
+                        print("]")
+                print("--------")
+                '''
+                
+                self.navigate.solve(unexplored[0], graph)
 
         if self.navigate.exploring:
             self.navigate.navigate()

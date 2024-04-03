@@ -190,12 +190,12 @@ class Map:
         return 
     
 
-    def to_png_explored(self):
+    def to_png_seen(self):
         transpose = np.zeros([np.size(self.seen_map, 1), np.size(self.seen_map, 0)])
 
         for y in range(np.size(self.seen_map, 1)):
             for x in range(np.size(self.seen_map, 0)):
-                if self.seen_map[x, np.size(self.seen_map, 1)-1-y] == 3:
+                if self.seen_map[x, np.size(self.seen_map, 1)-1-y] > 0:
                     transpose[y, x] = 1
 
         s = 'explored.png'
