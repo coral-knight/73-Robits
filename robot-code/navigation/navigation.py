@@ -109,12 +109,21 @@ class Navigate:
         return
     
     
-    def solve(self, unexplored, graph):
+    def solve(self, unexplored, graph, level):
         #print("solve para", point)
 
         self.exploring = True
         point = unexplored[0]
         pos = unexplored[1]
+
+        mapx, mapy = self.map.real_to_map(self.sensors.last_gps)
+        level = graph[mapx][mapy][]
+        unlevel = graph[pos[0][0]][pos[0][1]][pos[1]][3]
+
+        # preciso da pos do meu atual
+        # subo o com nível maior 
+        # subo os dois
+
 
         walk_list = []
         while self.dist_coords(self.sensors.last_gps, point) > 0.05:
