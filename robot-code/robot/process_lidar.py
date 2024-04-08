@@ -13,7 +13,6 @@ class Lidar:
 
     def update(self, front_gps, last_gyro):
         point_cloud = np.array(self.lidar.getLayerPointCloud(2)[0:512])
-        range_image = np.array(self.lidar.getLayerRangeImage(2)[0:512])
 
         for i in range(len(point_cloud)):
 
@@ -32,13 +31,13 @@ class Lidar:
             dist_prox = self.dist_coords(coordX, coordY, coordX_e, coordY_e)
             dist_ap = self.dist_coords(coordX_e, coordY_e, coordX_d, coordY_d)
 
-            if range_image[i] < 0.98:
+            if self.dist_coords(front_gps[0], front_gps[1], coordX, coordY) < 0.98:
                 if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
                     self.map.add_point([coordX, coordY])
                     for i in range(20): 
                         self.map.seen([(i*front_gps[0]+(19-i)*coordX)/19, (i*front_gps[1]+(19-i)*coordY)/19])
-            else:
-                print("fudeu")
+            #else:
+                #print("ferrou", i)
 
         self.map.to_png()
 

@@ -14,7 +14,7 @@ class Robot:
     def __init__(self, time_step):
         self.time_step = time_step
         
-        self.calibration_timer = 10
+        self.calibration_timer = 50
         self.current_tick = 0
 
         self.hardware = Hardware()
@@ -67,8 +67,11 @@ class Robot:
             self.navigate.speed(2, 2)
         elif self.current_tick == 5:
             self.sensors.calibrate_gyro()
-        else:
+        elif self.current_tick < 10:
             self.navigate.speed(-2, -2)
+        else:
+            self.navigate.speed(0, 0)
+            self.sensors.update(self.current_tick)
         return
 
 
@@ -82,20 +85,20 @@ class Robot:
 
         if self.current_tick == self.calibration_timer+1:
             self.navigate.speed(0,0)
-            #self.global_rrt = RRTStar(self.map, self.sensors.last_gps)
+            self.global_rrt = RRTStar(self.map, self.sensors.last_gps)
             return
 
         #print("exploring:", self.navigate.exploring)
 
         if not self.navigate.exploring:
             self.navigate.speed(0,0)
-
-            local_rrt = RRTStar(self.map, self.sensors.last_gps)
-            #a, last_pos = self.global_rrt.add_graph(self.sensors.last_gps)
-            last_pos = [[0,0], 1]
+            
+            a, last_pos = self.global_rrt.add_graph(self.sensors.last_gps)
 
             print("------------------------------------")
             print("new RRT")
+
+            local_rrt = RRTStar(self.map, self.sensors.last_gps)
 
             local_unexplored = []
             global_unexplored = []
@@ -105,16 +108,16 @@ class Robot:
                 cont += 1
                 #print("while no unexplored")
                 #print("========================================================================")
-                [local_unexplored, local_graph] = local_rrt.explore(1)
-                #[global_unexplored, global_graph] = self.global_rrt.explore(10)
+                [local_unexplored, local_graph] = local_rrt.explore(5)
+                [global_unexplored, global_graph] = self.global_rrt.explore(1)
 
-            if cont == 1000: 
+            if cont == 100: 
                 print("n achou nada")
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
                 print(local_unexplored[0])
-                self.navigate.solve(local_unexplored[0], local_graph, [self.sensors.last_gps, last_pos])
+                self.navigate.solve(local_unexplored[0], local_graph, [self.sensors.last_gps, [local_rrt.real_to_map(self.sensors.last_gps), 1]])
 
             elif len(global_unexplored) > 0:
                 print("found GLOBAL unexplored")
@@ -141,7 +144,7 @@ class Robot:
                 '''
 
         if self.navigate.exploring:
-            #self.global_rrt.update(self.sensors.last_gps)
+            self.global_rrt.update(self.sensors.last_gps)
             self.navigate.navigate()
 
         '''

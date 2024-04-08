@@ -14,12 +14,13 @@ class RRTStar:
         self.range_x = [pos[0]-self.resolution, pos[0]+self.resolution]
         self.range_y = [pos[1]-self.resolution, pos[1]+self.resolution]
 
-        # graph[x,y] = [ [ [i,j] , [ [x,y], 0] , dist, level ],...] -> [[coordenada], [[tile do pai], posição dentro do tile do pai], dist ate pos inicial, nivel]
+        # graph[x,y] = [ [ [i,j] , [ [x,y], 0]],...] -> [[coordenada], [[tile do pai], posição dentro do tile do pai]]
         self.graph = np.empty(self.size, dtype=object)
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
-        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0,0], 1], 0, 0])
+        print("creating RRT", self.real_to_map(pos))
+        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[self.real_to_map(pos)[0], self.real_to_map(pos)[1]], 1]])
 
 
     def graph_expand(self, point):
@@ -120,13 +121,13 @@ class RRTStar:
         # Find points with a distance from 'point' less than 'radius' and 
         mapx, mapy = self.real_to_map(point)
         #print(" ")
-        #print("=== Adding", point)
+        print("=== Adding", point, mapx, mapy)
+        print(self.real_to_map([0,0]))
 
         neighbours = []
         parent = [1000, 1000]
         pos = [[0,0], 0]
         dist = 1000
-        level = 0
         
         # Find neighbours
         depth = 0
@@ -134,17 +135,19 @@ class RRTStar:
             #print("depth", depth)
             for y in range(mapy-depth, mapy+depth+1):
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
+                    print("neighbourhood", x, y)
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         cont = 0
+                        print("passou")
                         for v in self.graph[x, y]:
                             if v != 0 and self.dist_coords(v[0], point) <= self.radius and not self.wall_between(v[0], point):
-                                #print("point in neighbourhood", v)
+                                print("point in neighbourhood", v, x, y, cont)
                                 neighbours.append([v, cont])
-                                if v[2] + self.dist_coords(v[0], point) < dist:
+                                if self.total_dist([[x, y], cont]) + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
                                     pos = [[x, y], cont]
-                                    dist = v[2] + self.dist_coords(v[0], point)
-                                    level = v[3]+1
+                                    print("aqui")
+                                    dist = self.total_dist([[x, y], cont]) + self.dist_coords(v[0], point)
                             cont += 1
             depth += 1
 
@@ -152,21 +155,17 @@ class RRTStar:
         #print("pos and dist", pos, dist)
 
         # Add 'point' to graph 
-        if parent == [1000, 1000]: return parent
-        self.graph[mapx, mapy].append([point, pos, dist, level])
+        if parent == [1000, 1000]: return parent, [[0,0], 0]
+        self.graph[mapx, mapy].append([point, pos])
 
         # Change parent for neighbours if passing through 'point' has a smaller path
-        '''for v in neighbours:
+        for v in neighbours:
             [p, c] = v
-            if p[0] != parent and dist + self.dist_coords(point, p[0]) < p[2]:
+            if p[0] != parent and dist + self.dist_coords(point, p[0]) < self.total_dist([[mapx, mapy], len(self.graph[mapx, mapy])-1]):
                 #print("= Updating dist for", v)
                 #print("new dist", dist + self.dist_coords(point, p[0]))
                 x, y = self.real_to_map(p[0])
                 self.graph[x][y][c][1] = [[mapx, mapy], len(self.graph[mapx, mapy])-1]
-
-                # TEM Q ATUALIZAR OS FILHOS DESSES TBM
-                self.graph[x][y][c][2] = dist + self.dist_coords(point, p[0])
-                self.graph[x][y][c][3] = nivel+1'''
 
         #print("closest", closest, pos)
         #print("adicionei", mapx, mapy, len(self.graph[mapx, mapy]))
@@ -183,8 +182,6 @@ class RRTStar:
 
     def explore(self, ticks):
         unexplored = []
-        print("range x", self.map.range_x)
-        print("range y", self.map.range_y)
         self.graph_expand([self.map.range_x[0]+0.03, self.map.range_y[0]+0.03])
         self.graph_expand([self.map.range_x[1]-0.03, self.map.range_y[1]-0.03])
 
@@ -194,7 +191,7 @@ class RRTStar:
             point = self.random_point()
             closest = self.closest_point(point)
             point = self.project_point(point, closest)
-            parent, p = self.add_graph(point)
+            parent, pos = self.add_graph(point)
             if parent == [1000,1000]: continue
 
             map_p = self.map.real_to_map(point)
@@ -202,8 +199,8 @@ class RRTStar:
             if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1):
                 if self.map.seen_map[map_p[0], map_p[1]] == 0:
                     #print("============================== inesplorado")
-                    mapx, mapy = self.real_to_map(point)
-                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
+                    print("inexplorado", point, pos, parent)
+                    unexplored.append([point, pos]) # [ponto (coordenada), posição]
 
         #print("len unexplored, end explore", len(unexplored))
         return [unexplored, self.graph]
@@ -212,6 +209,23 @@ class RRTStar:
     def dist_coords(self, a, b):
         dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
         return dist
+    
+    def total_dist(self, pos):
+        print("total_dist", pos)
+
+        s = 0
+        point = self.graph[pos[0][0]][pos[0][1]][pos[1]][0]
+
+        while True:
+            print("puxando pai", pos, self.graph[pos[0][0]][pos[0][1]])
+            parent_pos = self.graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of point parent
+            if pos == parent_pos or pos == [[0, 0], 1] or parent_pos == [[0,0], 1]: break
+            parent_point = self.graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordenates of point parent
+            s += self.dist_coords(point, parent_point)
+            pos = parent_pos
+            point = parent_point
+
+        return s
     
 
     def wall_between(self, a, b):
