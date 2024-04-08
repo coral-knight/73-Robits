@@ -113,7 +113,7 @@ class Navigate:
         print("solve para", unexplored[0])
         self.exploring = True
 
-        point = last[0]
+        point = last[0] #testse
         pos = last[1]
         print(pos)
         print(graph[pos[0][0]][pos[0][1]][pos[1]])
