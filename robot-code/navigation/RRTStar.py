@@ -14,12 +14,12 @@ class RRTStar:
         self.range_x = [pos[0]-self.resolution, pos[0]+self.resolution]
         self.range_y = [pos[1]-self.resolution, pos[1]+self.resolution]
 
-        # graph[x,y] = [ [ [i,j] , [ [x,y], 0] , dist ],...] -> [[coordenada], [[tile do pai], posição dentro do tile do pai], dist ate pos inicial, nivel]
+        # graph[x,y] = [ [ [i,j] , [ [x,y], 0] , dist, level ],...] -> [[coordenada], [[tile do pai], posição dentro do tile do pai], dist ate pos inicial, nivel]
         self.graph = np.empty(self.size, dtype=object)
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
-        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0,0], 0], 0, 0])
+        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0,0], 1], 0, 0])
 
 
     def graph_expand(self, point):
@@ -169,7 +169,8 @@ class RRTStar:
                 self.graph[x][y][c][3] = nivel+1'''
 
         #print("closest", closest, pos)
-        return parent, level
+        #print("adicionei", mapx, mapy, len(self.graph[mapx, mapy]))
+        return parent, [[mapx, mapy], len(self.graph[mapx, mapy])-1]
     
 
     def update(self, pos):
@@ -182,8 +183,10 @@ class RRTStar:
 
     def explore(self, ticks):
         unexplored = []
-        self.graph_expand([self.map.range_x[0]+0.03, self.map.range_y[0]-0.03])
-        self.graph_expand([self.map.range_x[1]+0.03, self.map.range_y[1]-0.03])
+        print("range x", self.map.range_x)
+        print("range y", self.map.range_y)
+        self.graph_expand([self.map.range_x[0]+0.03, self.map.range_y[0]+0.03])
+        self.graph_expand([self.map.range_x[1]-0.03, self.map.range_y[1]-0.03])
 
         while ticks > 0:
             ticks -= 1
@@ -191,7 +194,7 @@ class RRTStar:
             point = self.random_point()
             closest = self.closest_point(point)
             point = self.project_point(point, closest)
-            parent, level = self.add_graph(point)
+            parent, p = self.add_graph(point)
             if parent == [1000,1000]: continue
 
             map_p = self.map.real_to_map(point)
@@ -200,7 +203,7 @@ class RRTStar:
                 if self.map.seen_map[map_p[0], map_p[1]] == 0:
                     #print("============================== inesplorado")
                     mapx, mapy = self.real_to_map(point)
-                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1], level]) # [ponto (coordenada), posição]
+                    unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 
         #print("len unexplored, end explore", len(unexplored))
         return [unexplored, self.graph]

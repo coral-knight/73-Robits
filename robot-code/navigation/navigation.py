@@ -109,34 +109,68 @@ class Navigate:
         return
     
     
-    def solve(self, unexplored, graph, level):
-        #print("solve para", point)
-
+    def solve(self, unexplored, graph, last):
+        print("solve para", unexplored[0])
         self.exploring = True
-        point = unexplored[0]
-        pos = unexplored[1]
 
-        mapx, mapy = self.map.real_to_map(self.sensors.last_gps)
-        level = graph[mapx][mapy][]
-        unlevel = graph[pos[0][0]][pos[0][1]][pos[1]][3]
-
-        # preciso da pos do meu atual
-        # subo o com nível maior 
-        # subo os dois
-
-
+        point = last[0]
+        pos = last[1]
+        print(pos)
+        print(graph[pos[0][0]][pos[0][1]][pos[1]])
+        level = graph[pos[0][0]][pos[0][1]][pos[1]][3]
         walk_list = []
-        while self.dist_coords(self.sensors.last_gps, point) > 0.05:
-            walk_list.append(point)
 
-            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of 'pai'
-            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordenates of 'pai'
+        unpoint = unexplored[0]
+        unpos = unexplored[1]
+        unlevel = graph[unpos[0][0]][unpos[0][1]][unpos[1]][3]
+        unwalk_list = []
+
+        '''a = 0
+        while level > unlevel and a < 1000:
+            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of point parent
+            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordenates of point parent
+
+            walk_list.insert(0, point)
+
+            level -= 1
+            a += 1
+        print("passou", a)
+        b = 0
+        while unlevel > level and b < 1000:
+            unwalk_list.append(unpoint)
+
+            unpos = graph[unpos[0][0]][unpos[0][1]][unpos[1]][1] # Graph position of unpoint parent
+            unpoint = graph[unpos[0][0]][unpos[0][1]][unpos[1]][0] # Coordenates of unpoint parent
+
+            unlevel -= 1
+            b += 1
+        print("passou dois", b)
+
+        cont = 0
+        while point != unpoint and cont < 1000:
+            print(unpoint)
+            unwalk_list.append(unpoint)
+
+            unpos = graph[unpos[0][0]][unpos[0][1]][unpos[1]][1] 
+            unpoint = graph[unpos[0][0]][unpos[0][1]][unpos[1]][0] 
+
+            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] 
+            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] 
+
+            print(point)
+            walk_list.insert(0, point)
+
+            cont += 1
+        print("cont", cont)
+
+
+        walk_list = unwalk_list + walk_list
 
         self.make_list(self.sensors.last_gps)
         for i in range(len(walk_list)-1, -1, -1):
             self.make_list(walk_list[i])
 
-        self.path_smoothing()
+        self.path_smoothing()'''
 
         return
     
