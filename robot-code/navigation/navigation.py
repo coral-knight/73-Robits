@@ -78,12 +78,11 @@ class Navigate:
                     print("tinha parede no caminho que eu n vi", action)
                     self.exploring = False
                     self.action_list = []
-
-                    return
+                    return ["delete_node", action]
                 
                 self.walk_to(action)
 
-        return
+        return ["nothing"]
 
 
     def make_list(self, point):

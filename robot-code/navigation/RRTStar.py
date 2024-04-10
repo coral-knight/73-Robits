@@ -14,14 +14,14 @@ class RRTStar:
         self.range_x = [pos[0]-self.resolution, pos[0]+self.resolution]
         self.range_y = [pos[1]-self.resolution, pos[1]+self.resolution]
 
-        # graph[x,y] = [ [ [i,j] , [ [x,y], 0]],...] -> [[coordenada], [[dist tiles pro pai], posição dentro do tile do pai]]
+        # graph[x,y] = [ [ [i,j] , [ [x,y], 0], True], ...] -> [[coordenada], [[dist tiles pro pai], posição dentro do tile do pai], útil]
         self.graph = np.empty(self.size, dtype=object)
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
 
         print("creating RRT", self.real_to_map(pos))
-        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0, 0], 1]])
+        self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0, 0], 1], True])
 
         self.initial_pos = self.map_to_real(self.real_to_map(pos))
         self.cur_tile = [self.real_to_map(pos), 1]
@@ -102,7 +102,7 @@ class RRTStar:
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         for v in self.graph[x, y]:
-                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point):
+                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and v[2] == True:
                                 closest = v[0]
             depth += 1
 
@@ -136,7 +136,7 @@ class RRTStar:
                         cont = 0
                         for v in self.graph[x, y]:
                             if v != 0 and v[0] == point: return [1000, 1000], [[0,0], 0] 
-                            if v != 0 and self.dist_coords(v[0], point) <= self.radius and not self.wall_between(v[0], point):
+                            if v != 0 and self.dist_coords(v[0], point) <= self.radius and not self.wall_between(v[0], point) and v[2] == True:
                                 neighbours.append([v, cont])
                                 if self.total_dist([[x, y], cont]) + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
@@ -147,7 +147,7 @@ class RRTStar:
 
         # Add 'point' to graph 
         if parent == [1000, 1000]: return [1000, 1000], [[0,0], 0]
-        self.graph[mapx, mapy].append([point, pos])
+        self.graph[mapx, mapy].append([point, pos, True])
 
         # Change parent for neighbours if passing through the new node results in a smaller path
         for v in neighbours:
@@ -167,6 +167,19 @@ class RRTStar:
             self.add_graph(pos)
 
         return
+    
+
+    def delete(self, pos):
+        x, y = self.real_to_map(pos)
+
+        print("aqui", x, y)
+        for v in self.graph[x, y]:
+            print(v)
+            if v != 0 and v[0] == pos:
+                print("removendo", v)
+                v[2] = False
+
+        return 
 
 
     def explore(self, ticks):

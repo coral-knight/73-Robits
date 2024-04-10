@@ -142,7 +142,10 @@ class Robot:
 
         if self.navigate.exploring:
             self.global_rrt.update(self.sensors.last_gps)
-            self.navigate.navigate()
+            error = self.navigate.navigate()
+            if error[0] == "delete_node":
+                print("pedido de deleta para", error[1])
+                self.global_rrt.delete(error[1])
         
         return
         
