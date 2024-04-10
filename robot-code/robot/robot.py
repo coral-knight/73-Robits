@@ -79,7 +79,6 @@ class Robot:
         '''
         Runs a tick of the robot simulation
         '''
-        #print("=========================")
 
         self.sensors.update(self.current_tick)
 
@@ -87,8 +86,6 @@ class Robot:
             self.navigate.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.last_gps)
             return
-
-        #print("exploring:", self.navigate.exploring)
 
         if not self.navigate.exploring:
             self.navigate.speed(0,0)
@@ -104,14 +101,12 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 100:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
                 cont += 1
-                #print("while no unexplored")
-                #print("========================================================================")
                 [local_unexplored, local_graph] = local_rrt.explore(5)
                 [global_unexplored, global_graph] = self.global_rrt.explore(1)
 
-            if cont == 100: 
+            if cont == 1000: 
                 print("n achou nada")
 
             elif len(local_unexplored) > 0:
@@ -126,6 +121,8 @@ class Robot:
 
 
                 '''
+                To print the graph nodes
+
                 [unexplored, graph] = self.rrt.explore(25)
 
                 print("--------")
@@ -146,18 +143,6 @@ class Robot:
         if self.navigate.exploring:
             self.global_rrt.update(self.sensors.last_gps)
             self.navigate.navigate()
-
-        '''
-        if len(self.rrt_local):
-            # caminho
-        if len(self.walk_action) == 0:
-            while True:
-                if len(self.rrt_local) or len(self.rrt_global):
-                    #caminho
-                self.rrt.explore(5)
-        else:
-            # anda e chega se chegou
-        '''
         
         return
         

@@ -186,6 +186,8 @@ class Navigate:
     
 
     def graph_parent(self, graph, pos):
+        # Get the position of the parent of a graph point on the graph
+
         parent_pos = [[0, 0], 0]
         parent_pos[0][0] = pos[0][0] + graph[pos[0][0]][pos[0][1]][pos[1]][1][0][0]
         parent_pos[0][1] = pos[0][1] + graph[pos[0][0]][pos[0][1]][pos[1]][1][0][1]
@@ -195,6 +197,8 @@ class Navigate:
 
     
     def total_level(self, graph, pos):
+        # Get the level of a graph point
+
         s = 0
         parent_pos = self.graph_parent(graph, pos)
 
