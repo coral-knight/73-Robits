@@ -10,6 +10,7 @@ class Navigate:
 
         self.velocity = 5
         self.turn_velocity = 3
+        self.cur_velocity = [0,0]
 
         self.exploring = False
         self.action_list = []
@@ -27,6 +28,7 @@ class Navigate:
         
         self.wheel_left.setVelocity(left_speed)
         self.wheel_right.setVelocity(right_speed)
+        self.cur_velocity = [left_speed, right_speed]
         return
     
 
@@ -73,9 +75,10 @@ class Navigate:
 
             if name == "Walk To":
                 if self.wall_between(self.sensors.last_gps, action):
-                    self.exploring = False
                     print("tinha parede no caminho que eu n vi", action)
+                    self.exploring = False
                     self.action_list = []
+
                     return
                 
                 self.walk_to(action)
@@ -111,22 +114,21 @@ class Navigate:
     
     def solve(self, unexplored, graph, last):
         print("solve para", unexplored[0])
+        print(last[0])
         self.exploring = True
 
         point = last[0]
         pos = last[1]
-        print(pos)
-        print(graph[pos[0][0]][pos[0][1]])
-        #print(graph[pos[0][0]-1][pos[0][1]-1])
         level = self.total_level(graph, pos)
         walk_list = []
 
         unpoint = unexplored[0]
         unpos = unexplored[1]
-        print(unpos)
-        print(graph[unpos[0][0]][unpos[0][1]])
         unlevel = self.total_level(graph, unpos)
         unwalk_list = []
+
+        print(pos, unpos)
+        print(level, unlevel)
 
         a = 0
         while level > unlevel and a < 1000:
@@ -138,7 +140,6 @@ class Navigate:
             level -= 1
 
             a += 1
-        print("passou", a)
 
         b = 0
         while unlevel > level and b < 1000:
@@ -150,11 +151,10 @@ class Navigate:
             unlevel -= 1
 
             b += 1
-        print("passou dois", b)
 
         cont = 0
         while point != unpoint and cont < 1000:
-            print(unpoint)
+            #print(unpoint)
             unwalk_list.append(unpoint)
 
             unpos = self.graph_parent(graph, unpos)
@@ -163,11 +163,18 @@ class Navigate:
             pos = self.graph_parent(graph, pos)
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] 
 
-            print(point)
+            #print(point)
             walk_list.insert(0, point)
 
             cont += 1
-        print("cont", cont)
+
+        print("walk do unexplored")
+        for w in unwalk_list:
+            print(w)
+
+        print("walk do atual")
+        for w in walk_list:
+            print(w)
 
         walk_list = unwalk_list + walk_list
 

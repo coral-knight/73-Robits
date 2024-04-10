@@ -23,6 +23,9 @@ class RRTStar:
         print("creating RRT", self.real_to_map(pos))
         self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0, 0], 1]])
 
+        self.initial_pos = self.map_to_real(self.real_to_map(pos))
+        self.cur_tile = [self.real_to_map(pos), 1]
+
 
     def graph_expand(self, point):
         if point[0] < self.range_x[0]:
@@ -31,6 +34,7 @@ class RRTStar:
                 self.graph = np.insert(self.graph, 0, None, axis=0)
                 for y in range(np.size(self.graph, 1)): self.graph[0, y] = [0]
                 self.range_x[0] = self.range_x[0] - self.resolution
+                self.cur_tile[0][0] += 1
                 dif_map_x = dif_map_x - 1
 
         if point[0] > self.range_x[1]: 
@@ -47,6 +51,7 @@ class RRTStar:
                 self.graph = np.insert(self.graph, 0, None, axis=1)
                 for x in range(np.size(self.graph, 0)): self.graph[x, 0] = [0]
                 self.range_y[0] = self.range_y[0] - self.resolution
+                self.cur_tile[0][1] += 1
                 dif_map_y = dif_map_y - 1
 
         if point[1] > self.range_y[1]: 

@@ -88,57 +88,57 @@ class Robot:
             return
 
         if not self.navigate.exploring:
-            self.navigate.speed(0,0)
-            
-            a, last_pos = self.global_rrt.add_graph(self.sensors.last_gps)
+                self.navigate.speed(0, 0)
 
-            print("------------------------------------")
-            print("new RRT")
+                a, self.global_rrt.cur_tile = self.global_rrt.add_graph(self.sensors.last_gps)
 
-            local_rrt = RRTStar(self.map, self.sensors.last_gps)
+                print("------------------------------------")
+                print("new RRT")
 
-            local_unexplored = []
-            global_unexplored = []
+                local_rrt = RRTStar(self.map, self.sensors.last_gps)
 
-            cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
-                cont += 1
-                [local_unexplored, local_graph] = local_rrt.explore(5)
-                [global_unexplored, global_graph] = self.global_rrt.explore(1)
+                local_unexplored = []
+                global_unexplored = []
 
-            if cont == 1000: 
-                print("n achou nada")
+                cont = 0
+                while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
+                    cont += 1
+                    [local_unexplored, local_graph] = local_rrt.explore(5)
+                    [global_unexplored, global_graph] = self.global_rrt.explore(1)
 
-            elif len(local_unexplored) > 0:
-                print("found LOCAL unexplored")
-                print(local_unexplored[0])
-                self.navigate.solve(local_unexplored[0], local_graph, [self.sensors.last_gps, [local_rrt.real_to_map(self.sensors.last_gps), 1]])
+                if cont == 1000: 
+                    print("n achou nada")
 
-            elif len(global_unexplored) > 0:
-                print("found GLOBAL unexplored")
-                print(global_unexplored[0])
-                self.navigate.solve(global_unexplored[0], global_graph, [self.sensors.last_gps, last_pos])
+                elif len(local_unexplored) > 0:
+                    print("found LOCAL unexplored")
+                    print(local_unexplored[0])
+                    self.navigate.solve(local_unexplored[0], local_graph, [self.sensors.last_gps, local_rrt.cur_tile])
+
+                elif len(global_unexplored) > 0:
+                    print("found GLOBAL unexplored")
+                    print(global_unexplored[0])
+                    self.navigate.solve(global_unexplored[0], global_graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
 
 
-                '''
-                To print the graph nodes
+                    '''
+                    To print the graph nodes
 
-                [unexplored, graph] = self.rrt.explore(25)
+                    [unexplored, graph] = self.rrt.explore(25)
 
-                print("--------")
-                for x in range(np.size(graph, 0)):
-                    print("[", end = " ")
-                    for y in range(np.size(graph, 1)):
-                        print(graph[x][y], end = "")
-                        if y != np.size(graph, 1)-1:
+                    print("--------")
+                    for x in range(np.size(graph, 0)):
+                        print("[", end = " ")
+                        for y in range(np.size(graph, 1)):
+                            print(graph[x][y], end = "")
+                            if y != np.size(graph, 1)-1:
+                                print(",", end = " ")
+                        if x != np.size(graph, 0)-1:
+                            print("]", end = "")
                             print(",", end = " ")
-                    if x != np.size(graph, 0)-1:
-                        print("]", end = "")
-                        print(",", end = " ")
-                    else:
-                        print("]")
-                print("--------")
-                '''
+                        else:
+                            print("]")
+                    print("--------")
+                    '''
 
         if self.navigate.exploring:
             self.global_rrt.update(self.sensors.last_gps)
