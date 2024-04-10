@@ -15,7 +15,6 @@ class Lidar:
         point_cloud = np.array(self.lidar.getLayerPointCloud(2)[0:512])
 
         for i in range(len(point_cloud)):
-
             point = point_cloud[i]
 
             coordX = front_gps[0] + math.cos(last_gyro) * (-point.x) - math.sin(last_gyro) * (-point.y)

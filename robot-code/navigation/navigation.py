@@ -117,6 +117,7 @@ class Navigate:
         pos = last[1]
         print(pos)
         print(graph[pos[0][0]][pos[0][1]])
+        #print(graph[pos[0][0]-1][pos[0][1]-1])
         level = self.total_level(graph, pos)
         walk_list = []
 
@@ -129,22 +130,25 @@ class Navigate:
 
         a = 0
         while level > unlevel and a < 1000:
-            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of point parent
-            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordenates of point parent
+            pos = self.graph_parent(graph, pos) # Graph position of the parent
+            point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordinates of the parent
 
             walk_list.insert(0, point)
 
             level -= 1
+
             a += 1
         print("passou", a)
+
         b = 0
         while unlevel > level and b < 1000:
             unwalk_list.append(unpoint)
 
-            unpos = graph[unpos[0][0]][unpos[0][1]][unpos[1]][1] # Graph position of unpoint parent
-            unpoint = graph[unpos[0][0]][unpos[0][1]][unpos[1]][0] # Coordenates of unpoint parent
+            unpos = self.graph_parent(graph, unpos) # Graph position of the parent
+            unpoint = graph[unpos[0][0]][unpos[0][1]][unpos[1]][0] # Coordinates of the parent
 
             unlevel -= 1
+
             b += 1
         print("passou dois", b)
 
@@ -153,10 +157,10 @@ class Navigate:
             print(unpoint)
             unwalk_list.append(unpoint)
 
-            unpos = graph[unpos[0][0]][unpos[0][1]][unpos[1]][1] 
+            unpos = self.graph_parent(graph, unpos)
             unpoint = graph[unpos[0][0]][unpos[0][1]][unpos[1]][0] 
 
-            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] 
+            pos = self.graph_parent(graph, pos)
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] 
 
             print(point)
@@ -164,7 +168,6 @@ class Navigate:
 
             cont += 1
         print("cont", cont)
-
 
         walk_list = unwalk_list + walk_list
 
@@ -181,16 +184,28 @@ class Navigate:
         dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
         return dist
     
+
+    def graph_parent(self, graph, pos):
+        parent_pos = [[0, 0], 0]
+        parent_pos[0][0] = pos[0][0] + graph[pos[0][0]][pos[0][1]][pos[1]][1][0][0]
+        parent_pos[0][1] = pos[0][1] + graph[pos[0][0]][pos[0][1]][pos[1]][1][0][1]
+        parent_pos[1] = graph[pos[0][0]][pos[0][1]][pos[1]][1][1]
+
+        return parent_pos
+
+    
     def total_level(self, graph, pos):
         s = 0
-        point = graph[pos[0][0]][pos[0][1]][pos[1]][0]
+        parent_pos = self.graph_parent(graph, pos)
 
-        while pos != [[0,0], 1]:
+        while pos != parent_pos:
             s += 1
-            pos = graph[pos[0][0]][pos[0][1]][pos[1]][1] # Graph position of point parent
+            pos = parent_pos
+            parent_pos = self.graph_parent(graph, pos) # Graph position of point parent
 
         return s
     
+
     def wall_between(self, a, b):
         # Can the robot go safely from a to b?
 
