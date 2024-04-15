@@ -89,10 +89,10 @@ class Robot:
 
         if not self.navigate.exploring:
                 self.navigate.speed(0, 0)
-
-                a, self.global_rrt.cur_tile = self.global_rrt.add_graph(self.sensors.last_gps)
-
                 print("------------------------------------")
+
+                self.global_rrt.update(self.sensors.last_gps, 1)
+
                 print("new RRT")
 
                 local_rrt = RRTStar(self.map, self.sensors.last_gps)
@@ -103,7 +103,7 @@ class Robot:
                 cont = 0
                 while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
                     cont += 1
-                    [local_unexplored, local_graph] = local_rrt.explore(5)
+                    [local_unexplored, local_graph] = local_rrt.explore(10)
                     [global_unexplored, global_graph] = self.global_rrt.explore(1)
 
                 if cont == 1000: 
@@ -141,7 +141,7 @@ class Robot:
                     '''
 
         if self.navigate.exploring:
-            self.global_rrt.update(self.sensors.last_gps)
+            self.global_rrt.update(self.sensors.last_gps, 0)
             error = self.navigate.navigate()
             if error[0] == "delete_node":
                 print("pedido de deleta para", error[1])

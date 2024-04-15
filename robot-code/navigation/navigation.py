@@ -113,7 +113,7 @@ class Navigate:
     
     def solve(self, unexplored, graph, last):
         print("solve para", unexplored[0])
-        print(last[0])
+        print("last", last)
         self.exploring = True
 
         point = last[0]
