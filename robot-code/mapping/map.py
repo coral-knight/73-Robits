@@ -22,7 +22,7 @@ class Map:
 
 
     def expand(self, point):
-        if point[0] < self.range_x[0]:
+        if point[0] < (self.range_x[0]+self.resolution):
             dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution) + 1
             while dif_map_x:
                 self.map = np.insert(self.map, 0, None, axis=0)
@@ -31,7 +31,7 @@ class Map:
                 self.range_x[0] = self.range_x[0] - self.resolution
                 dif_map_x = dif_map_x - 1
 
-        if point[0] > self.range_x[1]: 
+        if point[0] > (self.range_x[1]-self.resolution): 
             dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution) + 1
             while dif_map_x:
                 self.map = np.insert(self.map, np.size(self.map, 0), None, axis=0)
@@ -40,7 +40,7 @@ class Map:
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
 
-        if point[1] < self.range_y[0]: 
+        if point[1] < (self.range_y[0]+self.resolution): 
             dif_map_y = math.ceil((self.range_y[0] - point[1])/self.resolution) + 1
             while dif_map_y:
                 self.map = np.insert(self.map, 0, None, axis=1)
@@ -49,7 +49,7 @@ class Map:
                 self.range_y[0] = self.range_y[0] - self.resolution
                 dif_map_y = dif_map_y - 1
 
-        if point[1] > self.range_y[1]: 
+        if point[1] > (self.range_y[1]-self.resolution): 
             dif_map_y = math.ceil((point[1] - self.range_y[1])/self.resolution) + 1
             while dif_map_y:
                 self.map = np.insert(self.map, np.size(self.map, 1), None, axis=1)

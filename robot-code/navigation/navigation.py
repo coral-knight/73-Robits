@@ -58,31 +58,34 @@ class Navigate:
                 self.speed(self.velocity, self.velocity)
             else:
                 print("terminou andar")
+                last = self.action_list[0][1]
                 self.action_list.pop(0)
+                return [["connect_node", last]]
 
-        return
+        return [["nothing"]]
 
 
     def navigate(self):
         #print("navigating")
 
-        if len(self.action_list) == 0:
+        if len(self.action_list) <= 1:
             self.exploring = False
 
         else:
-            name = self.action_list[0][0]
-            action = self.action_list[0][1]
+            name = self.action_list[1][0]
+            action = self.action_list[1][1]
 
             if name == "Walk To":
                 if self.wall_between(self.sensors.last_gps, action):
                     print("tinha parede no caminho que eu n vi", action)
                     self.exploring = False
+                    last = self.action_list[0][1]
                     self.action_list = []
-                    return ["delete_node", action]
+                    return [["delete_node", action], ["connect_node", last]]
                 
-                self.walk_to(action)
+                return self.walk_to(action)
 
-        return ["nothing"]
+        return [["nothing"]]
 
 
     def make_list(self, point):
@@ -106,7 +109,7 @@ class Navigate:
                 p = v-1
 
         aux_list.append(self.action_list[v-1])
-        self.action_list = aux_list[1:]
+        self.action_list = aux_list
 
         return
     

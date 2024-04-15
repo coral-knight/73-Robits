@@ -28,7 +28,7 @@ class RRTStar:
 
 
     def graph_expand(self, point):
-        if point[0] < self.range_x[0]:
+        if point[0] < (self.range_x[0]+self.resolution):
             dif_map_x = math.ceil((self.range_x[0] - point[0])/self.resolution) + 1
             while dif_map_x:
                 self.graph = np.insert(self.graph, 0, None, axis=0)
@@ -37,7 +37,7 @@ class RRTStar:
                 self.cur_tile[0][0] += 1
                 dif_map_x = dif_map_x - 1
 
-        if point[0] > self.range_x[1]: 
+        if point[0] > (self.range_x[1]-self.resolution): 
             dif_map_x = math.ceil((point[0] - self.range_x[1])/self.resolution) + 1
             while dif_map_x:
                 self.graph = np.insert(self.graph, np.size(self.graph, 0), None, axis=0)
@@ -45,7 +45,7 @@ class RRTStar:
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
 
-        if point[1] < self.range_y[0]: 
+        if point[1] < (self.range_y[0]+self.resolution): 
             dif_map_y = math.ceil((self.range_y[0] - point[1])/self.resolution) + 1
             while dif_map_y:
                 self.graph = np.insert(self.graph, 0, None, axis=1)
@@ -54,7 +54,7 @@ class RRTStar:
                 self.cur_tile[0][1] += 1
                 dif_map_y = dif_map_y - 1
 
-        if point[1] > self.range_y[1]: 
+        if point[1] > (self.range_y[1]-self.resolution): 
             dif_map_y = math.ceil((point[1] - self.range_y[1])/self.resolution) + 1
             while dif_map_y:
                 self.graph = np.insert(self.graph, np.size(self.graph, 1), None, axis=1)
@@ -87,7 +87,7 @@ class RRTStar:
         return [x, y]
     
 
-    def closest_point(self, point): 
+    def closest_point(self, point, op): 
         # Find the closest node to the point
 
         mapx, mapy = self.real_to_map(point)
@@ -102,7 +102,7 @@ class RRTStar:
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         for v in self.graph[x, y]:
-                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and v[3] == True:
+                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and (not op or not self.wall_between(v[0], point)) and v[3] == True:
                                 closest = v[0]
             depth += 1
 
@@ -167,7 +167,7 @@ class RRTStar:
     def update(self, pos, op):
         # Add current position to the Global RRT Graph 
 
-        closest = self.closest_point(pos)
+        closest = self.closest_point(pos, 1)
         if op == 1: print("update closest", closest, self.dist_coords(pos, closest))
         if op == 1 or self.dist_coords(pos, closest) > self.min_dist:
             parent, self.cur_tile = self.add_graph(pos)
@@ -176,22 +176,44 @@ class RRTStar:
         return
     
 
+    def connect(self, pos, to):
+        # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk_to" action)
+
+        px, py = self.real_to_map(pos)
+        tx, ty = self.real_to_map(to)
+
+        print("connecting", pos, to)
+        print("map", [px, py], [tx, ty])
+        tc = 0
+        for v in self.graph[tx, ty]:
+            print(v)
+            if v != 0 and self.dist_coords(v[0], to) < 0.002: 
+                self.graph[px, py].append([pos, [[tx, ty], tc], [], True])
+                self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+            tc += 1
+
+        return
+    
+
     def delete(self, pos):
         x, y = self.real_to_map(pos)
 
         print("aqui", x, y)
+        c = 0
         for v in self.graph[x, y]:
             print(v)
-            if v != 0 and v[0] == pos:
+            if v != 0 and self.dist_coords(v[0], pos) < 0.002:
                 print("removendo", v)
-
                 # Change to False all child nodes too
                 bfs = [v]
                 while len(bfs) > 0:
                     print("set false", bfs[0])
                     bfs[0][3] = False
-                    for a in bfs[0][2]: bfs.append(self.graph[a[0][0]][a[0][1]][a[1]])
+                    for a in bfs[0][2]: 
+                        child = self.graph_child([[x, y], c], a)
+                        bfs.append(self.graph[child[0][0]][child[0][1]][child[1]])
                     bfs.pop(0)
+            c += 1
 
         return 
 
@@ -207,7 +229,7 @@ class RRTStar:
             ticks -= 1
 
             point = self.random_point()
-            closest = self.closest_point(point)
+            closest = self.closest_point(point, 0)
             point = self.project_point(point, closest)
             parent, pos = self.add_graph(point)
             if parent == [1000, 1000]: continue
@@ -236,6 +258,17 @@ class RRTStar:
 
         return parent_pos
     
+
+    def graph_child(self, pos, delta):
+        # Get the position of the parent of a graph point on the graph
+
+        child_pos = [[0, 0], 0]
+        child_pos[0][0] = pos[0][0] - delta[0][0]
+        child_pos[0][1] = pos[0][1] - delta[0][1]
+        child_pos[1] = delta[1]
+
+        return child_pos
+
 
     def total_dist(self, pos):
         # Get the distance from the current node to the initial node

@@ -91,7 +91,7 @@ class Robot:
                 self.navigate.speed(0, 0)
                 print("------------------------------------")
 
-                self.global_rrt.update(self.sensors.last_gps, 1)
+                #self.global_rrt.update(self.sensors.last_gps, 1)
 
                 print("new RRT")
 
@@ -141,11 +141,15 @@ class Robot:
                     '''
 
         if self.navigate.exploring:
-            self.global_rrt.update(self.sensors.last_gps, 0)
-            error = self.navigate.navigate()
-            if error[0] == "delete_node":
-                print("pedido de deleta para", error[1])
-                self.global_rrt.delete(error[1])
+            #self.global_rrt.update(self.sensors.last_gps, 0)
+            action_list = self.navigate.navigate()
+            for action in action_list:
+                if action[0] == "delete_node":
+                    print("pedido de deleta para", action[1])
+                    self.global_rrt.delete(action[1])
+                if action[0] == "connect_node":
+                    print("pedido de ligação", action[1])
+                    self.global_rrt.connect(self.sensors.last_gps, action[1])
         
         return
         
