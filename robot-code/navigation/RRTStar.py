@@ -20,7 +20,7 @@ class RRTStar:
             for y in range(self.size[1]):
                 self.graph[x, y] = [0]
 
-        print("creating RRT", self.real_to_map(pos))
+        print("creating RRT", self.real_to_map(pos), pos)
         self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0, 0], 1], [], True])
 
         self.initial_pos = self.map_to_real(self.real_to_map(pos))
@@ -69,6 +69,21 @@ class RRTStar:
 
         return [math.floor((real_point[0]-self.range_x[0])/self.resolution),
                 math.floor((real_point[1]-self.range_y[0])/self.resolution)]
+    
+
+    def real_to_pos(self, real_point):
+
+        [x, y] = [math.floor((real_point[0]-self.range_x[0])/self.resolution),
+                  math.floor((real_point[1]-self.range_y[0])/self.resolution)]
+        
+        print("pos", real_point)
+
+        c = 0
+        for v in self.graph[x, y]:
+            if v != 0 and v[0] == real_point: break
+            c += 1
+
+        return [[x, y], c]
         
 
     def map_to_real(self, map_point):
@@ -105,6 +120,7 @@ class RRTStar:
                             if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and (not op or not self.wall_between(v[0], point)) and v[3] == True:
                                 closest = v[0]
             depth += 1
+        if c == 50: print("WHILE CLOSEST")
 
         return closest
 
@@ -149,7 +165,7 @@ class RRTStar:
         # Add 'point' to graph 
         if parent == [1000, 1000]: return [1000, 1000], [[0, 0], 0]
         self.graph[mapx, mapy].append([point, pos, [], True])
-        self.graph[ppos[0][0], ppos[0][1]][ppos[1]][2].append(pos)
+        self.graph[ppos[0][0], ppos[0][1]][ppos[1]][2].append([[mapx-ppos[0][0], mapy-ppos[0][1]], len(self.graph[mapx, mapy])-1])
 
         # Change parent for neighbours if passing through the new node results in a smaller path
         for v in neighbours:
@@ -178,19 +194,30 @@ class RRTStar:
 
     def connect(self, pos, to):
         # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk_to" action)
+        if self.dist_coords(pos, to) < 0.002: return
 
         px, py = self.real_to_map(pos)
         tx, ty = self.real_to_map(to)
 
         print("connecting", pos, to)
         print("map", [px, py], [tx, ty])
-        tc = 0
-        for v in self.graph[tx, ty]:
-            print(v)
-            if v != 0 and self.dist_coords(v[0], to) < 0.002: 
-                self.graph[px, py].append([pos, [[tx, ty], tc], [], True])
-                self.cur_tile = [[px, py], len(self.graph[px, py])-1]
-            tc += 1
+        print("initial", self.cur_tile)
+
+        if self.dist_coords([0, 0], to) < 0.002:
+            print("ligamento inicial")
+            self.graph[px, py].append([pos, [[self.cur_tile[0][0]-px, self.cur_tile[0][1]-py], self.cur_tile[1]], [], True])
+            self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+        else:
+            tc = 0
+            for v in self.graph[tx, ty]:
+                print(v)
+                if v != 0 and self.dist_coords(v[0], to) < 0.01: 
+                    print("ligou")
+                    self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True])
+                    self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1])
+                    self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+                    break
+                tc += 1
 
         return
     
@@ -198,21 +225,24 @@ class RRTStar:
     def delete(self, pos):
         x, y = self.real_to_map(pos)
 
-        print("aqui", x, y)
+        print("delete", x, y)
         c = 0
         for v in self.graph[x, y]:
             print(v)
-            if v != 0 and self.dist_coords(v[0], pos) < 0.002:
+            if v != 0 and self.dist_coords(v[0], pos) < 0.01:
                 print("removendo", v)
                 # Change to False all child nodes too
                 bfs = [v]
-                while len(bfs) > 0:
+                a = 0
+                while len(bfs) > 0 and a < 100:
                     print("set false", bfs[0])
                     bfs[0][3] = False
-                    for a in bfs[0][2]: 
-                        child = self.graph_child([[x, y], c], a)
-                        bfs.append(self.graph[child[0][0]][child[0][1]][child[1]])
+                    for b in bfs[0][2]: 
+                        child = self.graph_child([[x, y], c], b)
+                        if self.graph[child[0][0]][child[0][1]][child[1]][3] == True: bfs.append(self.graph[child[0][0]][child[0][1]][child[1]])
                     bfs.pop(0)
+                    a += 1
+                if a == 100: print("WHILE DELETE CHILD")
             c += 1
 
         return 
@@ -238,9 +268,9 @@ class RRTStar:
             if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1):
                 if self.map.seen_map[map_p[0], map_p[1]] == 0:
                     print("inexplorado", point, pos, parent)
-                    unexplored.append([point, pos]) # [ponto (coordenada), posição]
+                    unexplored.append(point) # [ponto (coordenada), posição]
 
-        return [unexplored, self.graph]
+        return unexplored
 
 
     def dist_coords(self, a, b):
@@ -260,12 +290,15 @@ class RRTStar:
     
 
     def graph_child(self, pos, delta):
-        # Get the position of the parent of a graph point on the graph
+        # Get the position of a child of a graph point on the graph
 
         child_pos = [[0, 0], 0]
-        child_pos[0][0] = pos[0][0] - delta[0][0]
-        child_pos[0][1] = pos[0][1] - delta[0][1]
+        child_pos[0][0] = pos[0][0] + delta[0][0]
+        child_pos[0][1] = pos[0][1] + delta[0][1]
         child_pos[1] = delta[1]
+
+        print("child of", pos, delta)
+        print(self.graph[child_pos[0][0]][child_pos[0][1]][child_pos[1]])
 
         return child_pos
 
@@ -280,8 +313,8 @@ class RRTStar:
         parent_pos = self.graph_parent(pos)
         parent_point = self.graph[parent_pos[0][0]][parent_pos[0][1]][parent_pos[1]][0]
 
-        while pos != parent_pos:
-
+        a = 0
+        while pos != parent_pos and a < 500:
             s += self.dist_coords(point, parent_point)
 
             pos = parent_pos
@@ -289,6 +322,9 @@ class RRTStar:
 
             parent_pos = self.graph_parent(pos)
             parent_point = self.graph[parent_pos[0][0]][parent_pos[0][1]][parent_pos[1]][0]
+
+            a += 1
+        if a == 500: print("WHILE TOTAL_DIST")
 
         return s
     

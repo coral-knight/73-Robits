@@ -115,7 +115,7 @@ class Navigate:
     
     
     def solve(self, unexplored, graph, last):
-        print("solve para", unexplored[0])
+        print("solve para", unexplored)
         print("last", last)
         self.exploring = True
 
@@ -142,6 +142,7 @@ class Navigate:
             level -= 1
 
             a += 1
+        if a == 1000: print("WHILE WALK_LIST")
 
         b = 0
         while unlevel > level and b < 1000:
@@ -153,6 +154,7 @@ class Navigate:
             unlevel -= 1
 
             b += 1
+        if b == 1000: print("WHILE UNWALK_LIST")
 
         cont = 0
         while point != unpoint and cont < 1000:
@@ -169,6 +171,7 @@ class Navigate:
             walk_list.insert(0, point)
 
             cont += 1
+        if cont == 1000: print("WHILE TOGETHER SOLVE")
 
         print("walk do unexplored")
         for w in unwalk_list:
@@ -211,10 +214,12 @@ class Navigate:
         s = 0
         parent_pos = self.graph_parent(graph, pos)
 
-        while pos != parent_pos:
+        while pos != parent_pos and s < 500:
             s += 1
             pos = parent_pos
             parent_pos = self.graph_parent(graph, pos) # Graph position of point parent
+
+        if s == 500: print("WHILE TOTAL_LEVEL")
 
         return s
     
