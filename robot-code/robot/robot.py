@@ -104,20 +104,22 @@ class Robot:
                 while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
                     cont += 1
                     local_unexplored = local_rrt.explore(10)
-                    global_unexplored= self.global_rrt.explore(1)
+                    global_unexplored = self.global_rrt.explore(1)
 
                 if cont == 1000: 
                     print("n achou nada")
+                    print("volta spawn")
+                    self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
 
                 elif len(local_unexplored) > 0:
                     print("found LOCAL unexplored")
                     print(local_unexplored[0])
-                    self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.last_gps, local_rrt.cur_tile])
+                    self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.last_gps, local_rrt.real_to_pos(self.sensors.last_gps)])
 
                 elif len(global_unexplored) > 0:
                     print("found GLOBAL unexplored")
                     print(global_unexplored[0])
-                    self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
+                    self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.real_to_pos(self.sensors.last_gps)])
 
 
                     '''
@@ -148,7 +150,7 @@ class Robot:
                     print("pedido de deleta para", action[1])
                     self.global_rrt.delete(action[1])
                 if action[0] == "connect_node":
-                    print("pedido de ligação", action[1], self.sensors.last_gps)
+                    print("pedido de ligação", self.sensors.last_gps, action[1])
                     self.global_rrt.connect(self.sensors.last_gps, action[1])
         
         return

@@ -73,17 +73,19 @@ class RRTStar:
 
     def real_to_pos(self, real_point):
 
-        [x, y] = [math.floor((real_point[0]-self.range_x[0])/self.resolution),
-                  math.floor((real_point[1]-self.range_y[0])/self.resolution)]
+        [x, y] = self.real_to_map(real_point)
         
-        print("pos", real_point)
+        print("pos", real_point, [x, y])
 
-        c = 0
-        for v in self.graph[x, y]:
-            if v != 0 and v[0] == real_point: break
-            c += 1
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if x+i >= 0 and x+i < np.size(self.graph, 0) and y+j >= 0 and y+j < np.size(self.graph, 1):
+                    c = 0
+                    for v in self.graph[x+i, y+j]:
+                        if v != 0 and self.dist_coords(v[0], real_point) < 0.005: return [[x+i, y+j], c]
+                        c += 1
 
-        return [[x, y], c]
+        return [[1000, 1000], 0]
         
 
     def map_to_real(self, map_point):
@@ -194,7 +196,7 @@ class RRTStar:
 
     def connect(self, pos, to):
         # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk_to" action)
-        if self.dist_coords(pos, to) < 0.002: return
+        if self.dist_coords(pos, to) < 0.0005: return
 
         px, py = self.real_to_map(pos)
         tx, ty = self.real_to_map(to)
@@ -203,7 +205,27 @@ class RRTStar:
         print("map", [px, py], [tx, ty])
         print("initial", self.cur_tile)
 
-        if self.dist_coords([0, 0], to) < 0.002:
+        parent = [[0, 0], 0]
+        dist = 1000
+
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if tx+i >= 0 and tx+i < np.size(self.graph, 0) and ty+j >= 0 and ty+j < np.size(self.graph, 1):
+                    tc = 0
+                    for v in self.graph[tx+i, ty+j]:
+                        if v != 0 and self.dist_coords(v[0], to) < dist:
+                            dist = self.dist_coords(v[0], to)
+                            parent = [[tx+i, ty+j], tc]
+                        tc += 1
+
+        if parent != [[0, 0], 0]:
+            [[tx, ty], tc] = parent
+            print("ligou em", parent, self.graph[tx, ty][tc][0])
+            self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True])
+            self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1])
+            self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+
+        '''if self.dist_coords([0, 0], to) < 0.002:
             print("ligamento inicial")
             self.graph[px, py].append([pos, [[self.cur_tile[0][0]-px, self.cur_tile[0][1]-py], self.cur_tile[1]], [], True])
             self.cur_tile = [[px, py], len(self.graph[px, py])-1]
@@ -211,13 +233,13 @@ class RRTStar:
             tc = 0
             for v in self.graph[tx, ty]:
                 print(v)
-                if v != 0 and self.dist_coords(v[0], to) < 0.01: 
+                if v != 0 and self.dist_coords(v[0], to) < 0.007: 
                     print("ligou")
                     self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True])
                     self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1])
                     self.cur_tile = [[px, py], len(self.graph[px, py])-1]
                     break
-                tc += 1
+                tc += 1'''
 
         return
     
@@ -230,16 +252,16 @@ class RRTStar:
         for v in self.graph[x, y]:
             print(v)
             if v != 0 and self.dist_coords(v[0], pos) < 0.01:
-                print("removendo", v)
                 # Change to False all child nodes too
-                bfs = [v]
+                bfs = [[[x, y], c]]
                 a = 0
                 while len(bfs) > 0 and a < 100:
                     print("set false", bfs[0])
-                    bfs[0][3] = False
-                    for b in bfs[0][2]: 
-                        child = self.graph_child([[x, y], c], b)
-                        if self.graph[child[0][0]][child[0][1]][child[1]][3] == True: bfs.append(self.graph[child[0][0]][child[0][1]][child[1]])
+                    self.graph[bfs[0][0][0]][bfs[0][0][1]][bfs[0][1]][3] = False
+                    print(self.graph[bfs[0][0][0]][bfs[0][0][1]][bfs[0][1]])
+                    for b in self.graph[bfs[0][0][0]][bfs[0][0][1]][bfs[0][1]][2]: 
+                        child = self.graph_child([[bfs[0][0][0], bfs[0][0][1]], bfs[0][1]], b)
+                        if self.graph[child[0][0]][child[0][1]][child[1]][3] == True: bfs.append(child)
                     bfs.pop(0)
                     a += 1
                 if a == 100: print("WHILE DELETE CHILD")
@@ -297,9 +319,6 @@ class RRTStar:
         child_pos[0][1] = pos[0][1] + delta[0][1]
         child_pos[1] = delta[1]
 
-        print("child of", pos, delta)
-        print(self.graph[child_pos[0][0]][child_pos[0][1]][child_pos[1]])
-
         return child_pos
 
 
@@ -343,7 +362,7 @@ class RRTStar:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0378:
+                            if v != 0 and self.dist_coords(p, v) < 0.035:
                                 return True
                 
         return False

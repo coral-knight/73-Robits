@@ -14,6 +14,7 @@ class Navigate:
 
         self.exploring = False
         self.action_list = []
+        self.last_walk = [[0,0], self.sensors.last_gps]
 
         #Left wheel
         self.wheel_left = self.hardware.getDevice("wheel1 motor")
@@ -32,7 +33,7 @@ class Navigate:
         return
     
 
-    def walk_to(self, point):
+    def walk_to(self, point, can_connect):
         ang = math.atan2(point[1]-self.sensors.last_gps[1], point[0]-self.sensors.last_gps[0])
         delta_angle = ang-self.sensors.last_gyro
 
@@ -57,10 +58,12 @@ class Navigate:
             if self.dist_coords(self.sensors.last_gps, point) > 0.005:
                 self.speed(self.velocity, self.velocity)
             else:
-                print("terminou andar")
-                last = self.action_list[0][1]
+                print("terminou andar, can connect: ", can_connect)
+                self.last_walk[0] = self.last_walk[1]
+                self.last_walk[1] = point
                 self.action_list.pop(0)
-                return [["connect_node", last]]
+                if can_connect: return [["connect_node", self.last_walk[0]]]
+                else: return [["nothing"]]
 
         return [["nothing"]]
 
@@ -68,29 +71,33 @@ class Navigate:
     def navigate(self):
         #print("navigating")
 
-        if len(self.action_list) <= 1:
+        if len(self.action_list) <= 0:
             self.exploring = False
 
         else:
-            name = self.action_list[1][0]
-            action = self.action_list[1][1]
+            name = self.action_list[0][0]
+            action = self.action_list[0][1]
+            can_connect = self.action_list[0][2]
 
             if name == "Walk To":
                 if self.wall_between(self.sensors.last_gps, action):
-                    print("tinha parede no caminho que eu n vi", action)
+                    print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
-                    last = self.action_list[0][1]
                     self.action_list = []
-                    return [["delete_node", action], ["connect_node", last]]
+                    self.last_walk[0] = self.last_walk[1]
+                    self.last_walk[1] = self.sensors.last_gps
+                    print("atual e last:", self.last_walk[1], self.last_walk[0])
+                    if can_connect: return [["delete_node", action], ["connect_node", self.last_walk[0]]]
+                    else: return [["connect_node", self.last_walk[0]]]
                 
-                return self.walk_to(action)
+                return self.walk_to(action, can_connect)
 
         return [["nothing"]]
 
 
-    def make_list(self, point):
+    def make_list(self, point, can_connect):
         print("append walk_to", point)
-        self.action_list.append(["Walk To", point])
+        self.action_list.append(["Walk To", point, can_connect])
         return
     
 
@@ -109,7 +116,7 @@ class Navigate:
                 p = v-1
 
         aux_list.append(self.action_list[v-1])
-        self.action_list = aux_list
+        self.action_list = aux_list[1:]
 
         return
     
@@ -121,6 +128,7 @@ class Navigate:
 
         point = last[0]
         pos = last[1]
+        print("teste", pos, graph[pos[0][0]][pos[0][1]])
         level = self.total_level(graph, pos)
         walk_list = []
 
@@ -137,6 +145,7 @@ class Navigate:
             pos = self.graph_parent(graph, pos) # Graph position of the parent
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordinates of the parent
 
+            print("add walk", point)
             walk_list.insert(0, point)
 
             level -= 1
@@ -146,6 +155,7 @@ class Navigate:
 
         b = 0
         while unlevel > level and b < 1000:
+            print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
             unpos = self.graph_parent(graph, unpos) # Graph position of the parent
@@ -156,9 +166,11 @@ class Navigate:
             b += 1
         if b == 1000: print("WHILE UNWALK_LIST")
 
+        print("level igual")
+
         cont = 0
         while point != unpoint and cont < 1000:
-            #print(unpoint)
+            print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
             unpos = self.graph_parent(graph, unpos)
@@ -167,7 +179,7 @@ class Navigate:
             pos = self.graph_parent(graph, pos)
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] 
 
-            #print(point)
+            print("add walk", point)
             walk_list.insert(0, point)
 
             cont += 1
@@ -181,11 +193,14 @@ class Navigate:
         for w in walk_list:
             print(w)
 
-        walk_list = unwalk_list + walk_list
+        #walk_list = unwalk_list + walk_list
 
-        self.make_list(self.sensors.last_gps)
+        self.make_list(self.sensors.last_gps, 0)
         for i in range(len(walk_list)-1, -1, -1):
-            self.make_list(walk_list[i])
+            self.make_list(walk_list[i], 0)
+
+        for i in range(len(unwalk_list)-1, -1, -1):
+            self.make_list(unwalk_list[i], 1)
 
         self.path_smoothing()
 
@@ -238,7 +253,7 @@ class Navigate:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0378:
+                            if v != 0 and self.dist_coords(p, v) < 0.035:
                                 print("parede", v, self.dist_coords(p, v))
                                 return True
                 
