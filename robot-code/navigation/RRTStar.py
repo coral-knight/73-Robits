@@ -176,7 +176,7 @@ class RRTStar:
                 x, y = self.real_to_map(p[0])
                 old = self.graph_parent([[x, y], c])
                 self.graph[old[0][0]][old[0][1]][old[1]][2].remove([[x, y], c]) # Remove Child from the Parent of the neighbout
-                self.graph[x][y][c][1] = [[mapx-x, mapy-y], len(self.graph[mapx, mapy])-1] # Change Parent of the neighbour
+                self.graph[x][y][c][1] = [[mapx-x, mapy-y], len(self.graph[mapx, mapy])-1, False] # Change Parent of the neighbour
                 self.graph[mapx][mapy][len(self.graph[mapx, mapy])-1][2].append([[x, y], c]) # Add Child to the point node
 
         return parent, [[mapx, mapy], len(self.graph[mapx, mapy])-1]
@@ -221,8 +221,8 @@ class RRTStar:
         if parent != [[0, 0], 0]:
             [[tx, ty], tc] = parent
             print("ligou em", parent, self.graph[tx, ty][tc][0])
-            self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True])
-            self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1])
+            self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True]) # Add new node
+            self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1]) # Add child
             self.cur_tile = [[px, py], len(self.graph[px, py])-1]
 
         '''if self.dist_coords([0, 0], to) < 0.002:
