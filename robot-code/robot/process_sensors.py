@@ -1,5 +1,6 @@
 import math
 from robot.process_lidar import Lidar
+from robot.process_camera import Camera
 from mapping.map import Map
 
 class Sensors:
@@ -33,6 +34,8 @@ class Sensors:
         #Decreased central angle camera
         self.camera_sub = self.hardware.getDevice("camera3")
         self.camera_sub.enable(self.time_step*5)
+
+        self.process_camera = Camera()
 
         #LiDAR
         self.lidar = self.hardware.getDevice("lidar")

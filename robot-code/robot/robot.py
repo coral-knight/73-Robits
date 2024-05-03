@@ -5,6 +5,7 @@ from navigation.RRT import RRT
 from navigation.RRTStar import RRTStar
 from navigation.navigation import Navigate
 import numpy as np
+import math
 
 class Robot:
     '''
@@ -86,62 +87,73 @@ class Robot:
             self.navigate.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.last_gps)
             return
+        
 
+        # Check if there's signs that the robot can safely go walking a straight path
         if not self.navigate.exploring:
-                self.navigate.speed(0, 0)
-                print("------------------------------------")
+            for sign in self.sensors.process_camera.sign_list:
+                # sing[x] = [[pos], [ang_min, ang_max], [x_right-x_left], [left point pos], [right point pos]]
 
-                #self.global_rrt.update(self.sensors.last_gps, 1)
+                # Create [x, y] slightly away from the sign's wall
+                [a, b] = sign[0]
+                [ae, be] = sign[3]
+                [ad, bd] = sign[4]
 
-                print("new RRT")
+                vi = [ad-ae, bd-be]
+                u = [-1*vi[1], vi[0]]
 
-                local_rrt = RRTStar(self.map, self.sensors.last_gps)
+                x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
+                y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
 
-                local_unexplored = []
-                global_unexplored = []
+                # Robot's angle to the sign and wall angulation
+                ang = math.atan2(sign[0][0] - self.sensors.last_gps[0], sign[0][1] - self.sensors.last_gps[1])  
+                [ang_min, ang_max] = sign[1]
 
-                cont = 0
-                while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
-                    cont += 1
-                    local_unexplored = local_rrt.explore(10)
-                    global_unexplored = self.global_rrt.explore(1)
-
-                if cont == 1000: 
-                    print("n achou nada")
-                    print("volta spawn")
-                    self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
-
-                elif len(local_unexplored) > 0:
-                    print("found LOCAL unexplored")
-                    print(local_unexplored[0])
-                    self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.last_gps, local_rrt.real_to_pos(self.sensors.last_gps)])
-
-                elif len(global_unexplored) > 0:
-                    print("found GLOBAL unexplored")
-                    print(global_unexplored[0])
-                    self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.real_to_pos(self.sensors.last_gps)])
+                # Check **if it's on the right side of the wall** and if there's no wall between
+                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
+                    if not self.wall_between(self.sensors.last_gps, [x, y]):
+                        self.navigate.exploring = True
+                        self.navigate.make_list([x, y], 0)
+                        break
 
 
-                    '''
-                    To print the graph nodes
+        # Find a new point on the RRTs to go 
+        if not self.navigate.exploring:
+            self.navigate.speed(0, 0)
+            print("------------------------------------")
 
-                    [unexplored, graph] = self.rrt.explore(25)
+            #self.global_rrt.update(self.sensors.last_gps, 1)
 
-                    print("--------")
-                    for x in range(np.size(graph, 0)):
-                        print("[", end = " ")
-                        for y in range(np.size(graph, 1)):
-                            print(graph[x][y], end = "")
-                            if y != np.size(graph, 1)-1:
-                                print(",", end = " ")
-                        if x != np.size(graph, 0)-1:
-                            print("]", end = "")
-                            print(",", end = " ")
-                        else:
-                            print("]")
-                    print("--------")
-                    '''
+            print("new RRT")
 
+            local_rrt = RRTStar(self.map, self.sensors.last_gps)
+
+            local_unexplored = []
+            global_unexplored = []
+
+            cont = 0
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
+                cont += 1
+                local_unexplored = local_rrt.explore(10)
+                global_unexplored = self.global_rrt.explore(1)
+
+            if cont == 1000: 
+                print("n achou nada")
+                print("volta spawn")
+                self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
+
+            elif len(local_unexplored) > 0:
+                print("found LOCAL unexplored")
+                print(local_unexplored[0])
+                self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.last_gps, local_rrt.real_to_pos(self.sensors.last_gps)])
+
+            elif len(global_unexplored) > 0:
+                print("found GLOBAL unexplored")
+                print(global_unexplored[0])
+                self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.real_to_pos(self.sensors.last_gps)])
+
+
+        # Navigate
         if self.navigate.exploring:
             #self.global_rrt.update(self.sensors.last_gps, 0)
             action_list = self.navigate.navigate()
@@ -175,4 +187,28 @@ class Robot:
                 self.run_simulation()
         self.run_endgame()
         return
+    
+
+    '''========================================= AUXILIAR FUNCTIONS ==========================================='''
+
+
+    def wall_between(self, a, b):
+        # Can the robot go safely from a to b?
+
+        d = int(self.dist_coords(a, b)/0.06)*3
+        if d == 0: d = 1
+
+        for i in range(d+1): 
+            p = [((d-i)*a[0]+i*b[0])/d, ((d-i)*a[1]+i*b[1])/d]
+            map_p = self.map.real_to_map(p)
+
+            for x in range(-1, 2):
+                for y in range(-1, 2):
+                    if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
+                        for v in self.map.map[map_p[0]+x, map_p[1]+y]:
+                            if v != 0 and self.dist_coords(p, v) < 0.035:
+                                print("parede", v, self.dist_coords(p, v))
+                                return True
+                
+        return False
                 

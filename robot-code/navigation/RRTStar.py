@@ -293,6 +293,9 @@ class RRTStar:
                     unexplored.append(point) # [ponto (coordenada), posição]
 
         return unexplored
+    
+
+    '''========================================= AUXILIAR FUNCTIONS ==========================================='''
 
 
     def dist_coords(self, a, b):
