@@ -89,31 +89,43 @@ class Robot:
             return
         
 
+        # TEST
+        if self.current_tick == 300:
+            print("adicionei a vítima")
+            self.sensors.process_camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06]))
+
+
         # Check if there's signs that the robot can safely go walking a straight path
         if not self.navigate.exploring:
             for sign in self.sensors.process_camera.sign_list:
-                # sing[x] = [[pos], [ang_min, ang_max], [x_right-x_left], [left point pos], [right point pos]]
+                # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
 
-                # Create [x, y] slightly away from the sign's wall
-                [a, b] = sign[0]
-                [ae, be] = sign[3]
-                [ad, bd] = sign[4]
+                # Create [x, y] slightly away from the sign's wall (vectors)
+                [a, b] = sign[1]
+                [ae, be] = sign[2]
+                [ad, bd] = sign[3]
 
                 vi = [ad-ae, bd-be]
-                u = [-1*vi[1], vi[0]]
+                u = [-1*vi[1], -1*vi[0]]
 
                 x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
                 y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
 
                 # Robot's angle to the sign and wall angulation
-                ang = math.atan2(sign[0][0] - self.sensors.last_gps[0], sign[0][1] - self.sensors.last_gps[1])  
-                [ang_min, ang_max] = sign[1]
+                ang = math.atan2(b - self.sensors.last_gps[1], a - self.sensors.last_gps[0])
+                ang_min = math.atan2(bd-be, ad-ae)
+                ang_max = math.atan2(be-bd, ae-ad)  
+
+                print("sign", sign[1], [x, y])
+                print("angles", ang, ang_min, ang_max)
 
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
+                    print("right angle")
                     if not self.wall_between(self.sensors.last_gps, [x, y]):
+                        print("sem parede")
                         self.navigate.exploring = True
-                        self.navigate.make_list([x, y], 0)
+                        self.navigate.append_list([x, y], 2)
                         break
 
 
@@ -158,12 +170,15 @@ class Robot:
             #self.global_rrt.update(self.sensors.last_gps, 0)
             action_list = self.navigate.navigate()
             for action in action_list:
-                if action[0] == "delete_node":
+                if action[0] == "delete":
                     print("pedido de deleta para", action[1])
                     self.global_rrt.delete(action[1])
-                if action[0] == "connect_node":
+                if action[0] == "connect":
                     print("pedido de ligação", self.sensors.last_gps, action[1])
                     self.global_rrt.connect(self.sensors.last_gps, action[1])
+                if action[0] == "collect":
+                    print("pedido de coleta")
+                    self.sensors.process_camera.collect(self.sensors.last_gps)
         
         return
         
@@ -190,6 +205,11 @@ class Robot:
     
 
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
+
+
+    def dist_coords(self, a, b):
+        dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
+        return dist
 
 
     def wall_between(self, a, b):

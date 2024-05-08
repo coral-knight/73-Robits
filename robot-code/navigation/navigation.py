@@ -33,7 +33,7 @@ class Navigate:
         return
     
 
-    def walk_to(self, point, has_walked):
+    def walk_to(self, point, arg):
         ang = math.atan2(point[1]-self.sensors.last_gps[1], point[0]-self.sensors.last_gps[0])
         delta_angle = ang-self.sensors.last_gyro
 
@@ -58,12 +58,13 @@ class Navigate:
             if self.dist_coords(self.sensors.last_gps, point) > 0.005:
                 self.speed(self.velocity, self.velocity)
             else:
-                print("terminou andar, has walked: ", has_walked)
+                print("terminou andar, argument: ", arg)
                 self.last_walk[0] = self.last_walk[1]
                 self.last_walk[1] = point
                 self.action_list.pop(0)
-                if not has_walked: return [["connect_node", self.last_walk[0]]]
-                else: return [["nothing"]]
+                if arg == 0: return [["connect", self.last_walk[0]]] # new area
+                if arg == 1: return [["nothing"]] # backtracking
+                if arg == 2: return [["collect"]] # collectable sign
 
         return [["nothing"]]
 
@@ -77,26 +78,27 @@ class Navigate:
         else:
             name = self.action_list[0][0]
             action = self.action_list[0][1]
-            has_walked = self.action_list[0][2]
+            arg = self.action_list[0][2]
 
             if name == "Walk To":
-                if has_walked == False and self.wall_between(self.sensors.last_gps, action):
+                if arg == False and self.wall_between(self.sensors.last_gps, action):
                     print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
                     self.action_list = []
                     self.last_walk[0] = self.last_walk[1]
                     self.last_walk[1] = self.sensors.last_gps
                     print("atual e last:", self.last_walk[1], self.last_walk[0])
-                    return [["delete_node", action], ["connect_node", self.last_walk[0]]]
+                    return [["delete", action], ["connect", self.last_walk[0]]]
                 
-                return self.walk_to(action, has_walked)
+                return self.walk_to(action, arg)
 
         return [["nothing"]]
 
 
-    def make_list(self, point, has_walked):
+    def append_list(self, point, arg):
+        # arg == 0: has not walked that path (new areas) | arg == 1: has walked that path (backtracking) | arg == 2: collectable sign
         print("append walk_to", point)
-        self.action_list.append(["Walk To", point, has_walked])
+        self.action_list.append(["Walk To", point, arg])
         return
     
 
@@ -194,12 +196,12 @@ class Navigate:
 
         #walk_list = unwalk_list + walk_list
 
-        self.make_list(self.sensors.last_gps, 1)
+        self.append_list(self.sensors.last_gps, 1)
         for i in range(len(walk_list)-1, -1, -1):
-            self.make_list(walk_list[i], 1)
+            self.append_list(walk_list[i], 1)
 
         for i in range(len(unwalk_list)-1, -1, -1):
-            self.make_list(unwalk_list[i], 0)
+            self.append_list(unwalk_list[i], 0)
 
         self.path_smoothing()
 
