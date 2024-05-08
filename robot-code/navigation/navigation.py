@@ -14,7 +14,7 @@ class Navigate:
 
         self.exploring = False
         self.action_list = []
-        self.last_walk = [[0,0], self.sensors.last_gps]
+        self.last_walk = [[0,0], self.sensors.gps.last]
 
         #Left wheel
         self.wheel_left = self.hardware.getDevice("wheel1 motor")
@@ -34,8 +34,8 @@ class Navigate:
     
 
     def walk_to(self, point, arg):
-        ang = math.atan2(point[1]-self.sensors.last_gps[1], point[0]-self.sensors.last_gps[0])
-        delta_angle = ang-self.sensors.last_gyro
+        ang = math.atan2(point[1]-self.sensors.gps.last[1], point[0]-self.sensors.gps.last[0])
+        delta_angle = ang-self.sensors.gyro.last
 
         if abs(delta_angle) >= 0.05:
             #print("rotating", delta_angle)
@@ -52,10 +52,10 @@ class Navigate:
         
         else:
             #print("walking", point)
-            #print(self.sensors.last_gps)
-            #print(self.dist_coords(self.sensors.last_gps, point))
+            #print(self.sensors.gps.last)
+            #print(self.dist_coords(self.sensors.gps.last, point))
 
-            if self.dist_coords(self.sensors.last_gps, point) > 0.005:
+            if self.dist_coords(self.sensors.gps.last, point) > 0.005:
                 self.speed(self.velocity, self.velocity)
             else:
                 print("terminou andar, argument: ", arg)
@@ -81,12 +81,12 @@ class Navigate:
             arg = self.action_list[0][2]
 
             if name == "Walk To":
-                if arg == False and self.wall_between(self.sensors.last_gps, action):
+                if arg == False and self.wall_between(self.sensors.gps.last, action):
                     print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
                     self.action_list = []
                     self.last_walk[0] = self.last_walk[1]
-                    self.last_walk[1] = self.sensors.last_gps
+                    self.last_walk[1] = self.sensors.gps.last
                     print("atual e last:", self.last_walk[1], self.last_walk[0])
                     return [["delete", action], ["connect", self.last_walk[0]]]
                 
@@ -104,7 +104,7 @@ class Navigate:
 
     def path_smoothing(self):
         p, v = 0, 0
-        aux_list = [["Walk To", self.sensors.last_gps]]
+        aux_list = [["Walk To", self.sensors.gps.last]]
 
         while v != len(self.action_list):
             print("smoothing", p, v)
@@ -196,7 +196,7 @@ class Navigate:
 
         #walk_list = unwalk_list + walk_list
 
-        self.append_list(self.sensors.last_gps, 1)
+        self.append_list(self.sensors.gps.last, 1)
         for i in range(len(walk_list)-1, -1, -1):
             self.append_list(walk_list[i], 1)
 

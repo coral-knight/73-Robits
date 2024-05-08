@@ -4,8 +4,10 @@ import numpy as np
 
 class RRT:
 
-    def __init__(self, map, pos):
+    def __init__(self, map, sensors):
         self.map = map 
+        self.sensors = sensors
+        pos = self.sensors.gps.last
 
         self.size = [2, 2]
         self.resolution = 0.06

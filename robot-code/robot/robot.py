@@ -1,5 +1,5 @@
 from controller import Robot as Hardware
-from robot.process_sensors import Sensors
+from robot.sensors import Sensors
 from mapping.map import Map
 from navigation.RRT import RRT
 from navigation.RRTStar import RRTStar
@@ -60,14 +60,14 @@ class Robot:
         '''
 
         if self.current_tick == 1:
-            self.sensors.initial_gps = self.sensors.gps.getValues()
+            self.sensors.gps.calibrate()
 
-        self.sensors.update_gps()
+        self.sensors.gps.update()
 
         if self.current_tick < 5:
             self.navigate.speed(2, 2)
         elif self.current_tick == 5:
-            self.sensors.calibrate_gyro()
+            self.sensors.gyro.calibrate(self.sensors.gps.last)
         elif self.current_tick < 10:
             self.navigate.speed(-2, -2)
         else:
@@ -85,19 +85,19 @@ class Robot:
 
         if self.current_tick == self.calibration_timer+1:
             self.navigate.speed(0,0)
-            self.global_rrt = RRTStar(self.map, self.sensors.last_gps)
+            self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
         
 
         # TEST
         if self.current_tick == 300:
             print("adicionei a vítima")
-            self.sensors.process_camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06]))
+            self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06]))
 
 
         # Check if there's signs that the robot can safely go walking a straight path
         if not self.navigate.exploring:
-            for sign in self.sensors.process_camera.sign_list:
+            for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
 
                 # Create [x, y] slightly away from the sign's wall (vectors)
@@ -112,7 +112,7 @@ class Robot:
                 y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
 
                 # Robot's angle to the sign and wall angulation
-                ang = math.atan2(b - self.sensors.last_gps[1], a - self.sensors.last_gps[0])
+                ang = math.atan2(b - self.sensors.gps.last[1], a - self.sensors.gps.last[0])
                 ang_min = math.atan2(bd-be, ad-ae)
                 ang_max = math.atan2(be-bd, ae-ad)  
 
@@ -122,7 +122,7 @@ class Robot:
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
                     print("right angle")
-                    if not self.wall_between(self.sensors.last_gps, [x, y]):
+                    if not self.wall_between(self.sensors.gps.last, [x, y]):
                         print("sem parede")
                         self.navigate.exploring = True
                         self.navigate.append_list([x, y], 2)
@@ -134,11 +134,11 @@ class Robot:
             self.navigate.speed(0, 0)
             print("------------------------------------")
 
-            #self.global_rrt.update(self.sensors.last_gps, 1)
+            #self.global_rrt.update(self.sensors.gps.last, 1)
 
             print("new RRT")
 
-            local_rrt = RRTStar(self.map, self.sensors.last_gps)
+            local_rrt = RRTStar(self.map, self.sensors.gps.last)
 
             local_unexplored = []
             global_unexplored = []
@@ -152,33 +152,33 @@ class Robot:
             if cont == 1000: 
                 print("n achou nada")
                 print("volta spawn")
-                self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.cur_tile])
+                self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
                 print(local_unexplored[0])
-                self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.last_gps, local_rrt.real_to_pos(self.sensors.last_gps)])
+                self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
 
             elif len(global_unexplored) > 0:
                 print("found GLOBAL unexplored")
                 print(global_unexplored[0])
-                self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.last_gps, self.global_rrt.real_to_pos(self.sensors.last_gps)])
+                self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
 
         # Navigate
         if self.navigate.exploring:
-            #self.global_rrt.update(self.sensors.last_gps, 0)
+            #self.global_rrt.update(self.sensors.gps.last, 0)
             action_list = self.navigate.navigate()
             for action in action_list:
                 if action[0] == "delete":
                     print("pedido de deleta para", action[1])
                     self.global_rrt.delete(action[1])
                 if action[0] == "connect":
-                    print("pedido de ligação", self.sensors.last_gps, action[1])
-                    self.global_rrt.connect(self.sensors.last_gps, action[1])
+                    print("pedido de ligação", self.sensors.gps.last, action[1])
+                    self.global_rrt.connect(self.sensors.gps.last, action[1])
                 if action[0] == "collect":
                     print("pedido de coleta")
-                    self.sensors.process_camera.collect(self.sensors.last_gps)
+                    self.sensors.camera.collect()
         
         return
         
