@@ -8,13 +8,12 @@ class Sensors:
     def __init__(self, hardware, time_step, map):
         self.hardware = hardware
         self.time_step = time_step
-
         self.map = map
 
         self.gyro = Gyro(self.hardware, self.time_step)
         self.gps = Gps(self.hardware, self.time_step, self.gyro)
-        self.camera = Camera(self.hardware, self.time_step, self.gps)
-        self.lidar = Lidar(self.hardware, self.time_step, self.map)
+        self.lidar = Lidar(self.hardware, self.time_step, self.map, self.gps, self.gyro)
+        self.camera = Camera(self.hardware, self.time_step, self.gps, self.gyro, self.lidar)
 
 
     def update(self, current_tick):
@@ -22,7 +21,7 @@ class Sensors:
         self.gyro.update()
 
         if current_tick % 5 == 0:
-            self.lidar.update(self.gps.front, self.gyro.last)
+            self.lidar.update()
 
         for i in range(-1, 2):
             for j in range(-1, 2):

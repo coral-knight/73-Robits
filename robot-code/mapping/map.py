@@ -111,47 +111,148 @@ class Map:
             print(" ")
 
 
+    
     def print_tile_map(self):
-        self.add_point([0, 0])
-        # divide cada tile por 3x3
+        # Marca como 1 onde tem parede, em vez de array de pontos 
+        mapa_normal = np.empty([np.size(self.map, 0), np.size(self.map, 1)], dtype=object)
+
+        for y in range(np.size(self.map, 1)):
+            for x in range(np.size(self.map, 0)):
+                mapa_normal[x, y] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        for y in range(np.size(self.map, 1)):
+            for x in range(np.size(self.map, 0)):
+                # print("Selfmap0", self.map[0, 0])
+                for p in self.map[x, y]:
+                    if p == 0:
+                        continue
+                    print("P:", p)
+                    # array de 9 elementos
+                    """
+                    012
+                    345
+                    678
+                    """
+                    # print("PPP:", p[1], p[1] - self.range_y[0])
+                    xTile = (p[0] - self.range_x[0])/0.06
+                    yTile = (p[1] - self.range_y[0])/0.06
+
+                    xPTile = (p[0] % 0.06) /0.06*3 # varia de 0 a 2
+                    yPTile = (p[1] % 0.06) /0.06*3
+                    xPTile = min(int(xPTile), 2)
+                    yPTile = min(int(yPTile), 2) # só para garantir caso ele vire 3
+                    blocoParede = int(xPTile + 3*yPTile)
+                    mapa_normal[int(xTile), int(yTile)][blocoParede] = 1
         
         # Tam do tile: 0.12
         # Mapa aux para na hora de printar
-        mapa_imprime = np.empty([self.size[0]*4 +1, self.size[1]*4 +1], dtype=object)
-        
-        # cada elemento na matrix representa meio tile
-        for y in range(0, np.size(self.map, 1), 2): # começa no 0, termina no np.size(...), e vai indo de 2 em 2
-            for x in range(0, np.size(self.map, 0), 2):
-                # Para cada tile, deixo 3x3 para ver em que parte do tile fica as paredes
-                tile_walls = np.empty([3, 3], dtype=object)
-                # Range do tile
-                tile_range_x = [self.range_x[0] + 0.06*x, self.range_x[0] + 0.06*(x+2)]
-                tile_range_y = [self.range_y[0] + 0.06*y, self.range_y[0] + 0.06*(y+2)]
-                print("Tile Range: ", tile_range_x, tile_range_y)
+        mapa_imprime = np.empty([np.size(self.map, 0)*4+50, np.size(self.map, 1)*4 +50], dtype=object)
+        # xMax = np.size(mapa_imprime, 0)
+        # yMax = np.size(mapa_imprime, 1)
+        for y in range(np.size(mapa_normal, 1)): # Passa por cada mapa_imprime (pares primeiro(vertices))
+            for x in range(np.size(mapa_normal, 0)):
+                # Casa central: x*2+1, y*2+1
+                for auxY in [0, 1, 2]:
+                    for auxX in [0, 1, 2]:
+                        if auxX == 1 and auxY == 1:
+                            continue
+                        if mapa_normal[x, y][auxX+3*auxY] == 1:
+                            mapa_imprime[x*2+auxX+25, y*2+auxY+25] = 1
 
-                # Para cada ponto no map
-                pontos_de_tiles_juntados = np.concatenate(self.map[x, y], self.map[x+1, y], self.map[x, y+1], self.map[x+1, y+1], axis = 0)
-                for point in pontos_de_tiles_juntados:
-                    # Ignora os casos que da 0
-                    if point == 0:
-                        continue
-                    # Coordenada X e Coordenada Y do ponto
-                    coordX = point[0]
-                    coordY = point[1]
-                    print("Coord antes de mudar:", coordX, coordY)
-                    # Subtrai o início do tile, pq quero só a coordenada em relação ao tile, e n ao mapa
-                    coordX -= tile_range_x[0]
-                    coordY -= tile_range_y[0]
-                    print("Coords: ", coordX, coordY)
-                    # 0.12 é o tamanho do tile, ent divido ele por 0.12(coordenada vai variar de 0 a 1) e multiplico por 3(varia de 0 a 3)
-                    # aí marca essa posição como parede no tile
-                    print("Marcando tiles:", math.min(2, math.floor(coordX/0.12*3)), math.min(2, math.floor(coordY/0.12*3)))
-                    # tile_walls[math.min(2, math.floor(coordX/0.12*3)), math.min(2, math.floor(coordY/0.12*3))] = 1
-                # atualiza no mapa_imprime
-                for aux_y in [0, 1, 2]:
-                    for aux_x in [0, 1, 2]:
-                        if aux_x != 1 or aux_y != 1: # Pula a casa central
-                            mapa_imprime[2*x + aux_x+1, 2*y + aux_y+1] = tile_walls[aux_x, aux_y]
+        # Remove todos as linhas e colunas q só tem None
+        darBreak = False
+        for y in range(np.size(mapa_imprime, 1)):
+            contK = 0
+            if darBreak: break
+            for x in range(np.size(mapa_imprime, 0)):
+                if mapa_imprime[x, y] == None:
+                    contK += 1
+            if (contK == np.size(mapa_imprime, 0)):
+                for x in range(np.size(mapa_imprime, 0)):
+                    mapa_imprime[x, y] = '/' # Ignora
+            else:
+                darBreak = True
+                break
+        darBreak = False
+        for y in range(np.size(mapa_imprime, 1)-1, -1, -1):
+            contK = 0
+            if darBreak: break
+            for x in range(np.size(mapa_imprime, 0)):
+                if mapa_imprime[x, y] == None or mapa_imprime[x, y] == '/':
+                    contK += 1
+            if (contK == np.size(mapa_imprime, 0)):
+                for x in range(np.size(mapa_imprime, 0)):
+                    mapa_imprime[x, y] = '/' # Ignora
+            else:
+                darBreak = True
+                break
+        darBreak = False
+        for x in range(np.size(mapa_imprime, 0)):
+            contK = 0
+            if darBreak: break
+            for y in range(np.size(mapa_imprime, 1)):
+                if mapa_imprime[x, y] == None or mapa_imprime[x, y] == '/':
+                    contK += 1
+            if (contK == np.size(mapa_imprime, 1)):
+                for y in range(np.size(mapa_imprime, 1)):
+                    mapa_imprime[x, y] = '/' # Ignora
+            else:
+                darBreak = True
+                break
+        darBreak = False
+        for x in range(np.size(mapa_imprime, 0)-1, -1, -1):
+            contK = 0
+            if darBreak: break
+            for y in range(np.size(mapa_imprime, 1)):
+                if mapa_imprime[x, y] == None or mapa_imprime[x, y] == '/':
+                    contK += 1
+            if (contK == np.size(mapa_imprime, 1)):
+                for y in range(np.size(mapa_imprime, 1)):
+                    mapa_imprime[x, y] = '/' # Ignora
+            else:
+                darBreak = True
+                break
+        print("Mapinha bonitinho")
+        for y in range(np.size(mapa_imprime, 1)):
+            contK = 0
+            for x in range(np.size(mapa_imprime, 0)):
+                if mapa_imprime[x, y] == None:
+                    print('.', end=" ")
+                elif mapa_imprime[x, y] == '/':
+                    contK += 1
+                else:
+                    print(mapa_imprime[x, y], end=" ")
+            if contK != np.size(mapa_imprime, 0): print(" ")
+
+        return_map = []
+        for x in range(np.size(mapa_imprime, 0)):
+            auxList = []
+            for y in range(np.size(mapa_imprime, 1)):
+                if mapa_imprime[x, y] != '/': auxList.append(str(mapa_imprime[x, y]) if mapa_imprime[x, y] else '0')
+            if len(auxList) != 0: return_map.append(auxList)
+
+        return_map[round((abs(self.range_x[0])/0.06-1)*2)+1][round((abs(self.range_y[0])/0.06-1)*2)+1] = '5'
+        return_map[round((abs(self.range_x[0])/0.06-1)*2)-1][round((abs(self.range_y[0])/0.06-1)*2)+1] = '5'
+        return_map[round((abs(self.range_x[0])/0.06-1)*2)+1][round((abs(self.range_y[0])/0.06-1)*2)-1] = '5'
+        return_map[round((abs(self.range_x[0])/0.06-1)*2)-1][round((abs(self.range_y[0])/0.06-1)*2)-1] = '5'
+        # Marcar tile inicial
+        # posição do 0, 0 no mapa_imprime é [round((self.range_x[0]/0.06-1)*2)+1, round((self.range_y[0]/0.06-1)*2)+1]
+        # explicação aqui(p DvD) https://discord.com/channels/@me/699602766007631872/1237905857648529418
+        
+        for i in range(np.size(return_map, 0)):
+            return_map[i][0] = '1'
+            return_map[i][np.size(return_map, 1)-1] = '1'
+            
+        for i in range(np.size(return_map, 1)):
+            return_map[0][i] = '1'
+            return_map[np.size(return_map, 1)-1][i] = '1'
+        
+        for y in range(np.size(return_map, 1)):
+            for x in range(np.size(return_map, 0)):
+                print(return_map[x][y], end=" ")
+            print(" ")
+        # print(return_map)
+        return return_map
 
         for i in range(np.size(mapa_imprime, 1)):
             print("--- Printando mapa ---")

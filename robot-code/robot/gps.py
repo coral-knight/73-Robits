@@ -7,7 +7,6 @@ class Gps:
     def __init__(self, hardware, time_step, gyro):
         self.hardware = hardware
         self.time_step = time_step
-
         self.gyro = gyro
 
         # Hardware

@@ -6,6 +6,7 @@ from navigation.RRTStar import RRTStar
 from navigation.navigation import Navigate
 import numpy as np
 import math
+import struct
 
 class Robot:
     '''
@@ -178,15 +179,23 @@ class Robot:
                     self.global_rrt.connect(self.sensors.gps.last, action[1])
                 if action[0] == "collect":
                     print("pedido de coleta")
-                    self.sensors.camera.collect()
+                    self.sensors.camera.collect(self.navigate)
+                
+                if action[0] == "exit":
+                    definitive_map = np.array(self.map.print_tile_map())
+                    print("definitive_map")
+                    print(definitive_map)
+                    d = definitive_map.shape
+                    d_bytes = struct.pack('2i', *d)
+                    flatMap = ','.join(definitive_map.flatten())
+                    dub_bytes = flatMap.encode('utf-8')
+                    final_bytes = d_bytes + dub_bytes
+                    self.emitter.send(final_bytes)
+                    map_evaluate_request = struct.pack('c', b'M')
+                    self.emitter.send(map_evaluate_request)
+                    exit_mes = struct.pack('c', b'E')
+                    self.emitter.send(exit_mes)
         
-        return
-        
-
-    def run_endgame(self):
-        '''
-        Does the map cleanup and ends the simulation
-        '''
         return
         
 
@@ -200,7 +209,6 @@ class Robot:
                 self.run_calibration()
             else:
                 self.run_simulation()
-        self.run_endgame()
         return
     
 
