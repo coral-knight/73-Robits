@@ -13,6 +13,7 @@ class Navigate:
         self.cur_velocity = [0,0]
 
         self.exploring = False
+        self.collecting = False
         self.action_list = []
         self.last_walk = [[0,0], self.sensors.gps.last]
 
@@ -62,7 +63,7 @@ class Navigate:
                 self.last_walk[0] = self.last_walk[1]
                 self.last_walk[1] = point
                 self.action_list.pop(0)
-                if self.dist_coords(self.sensors.last_gps, [0, 0]) <= 0.005: return[["exit"]]
+                if self.dist_coords(self.sensors.gps.last, [0, 0]) <= 0.005: return[["exit"]]
                 if arg == 0: return [["connect", self.last_walk[0]]] # new area
                 if arg == 1: return [["nothing"]] # backtracking
                 if arg == 2: return [["collect"]] # collectable sign

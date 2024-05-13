@@ -27,32 +27,14 @@ class Robot:
 
         self.navigate = Navigate(self.hardware, self.sensors, self.map)
         
-        #Receiver
+        # Receiver
         self.receiver = self.hardware.getDevice("receiver")
         self.receiver.enable(self.time_step)
 
-        #Emmiter
+        # Emmiter
         self.emitter = self.hardware.getDevice("emitter")
 
         self.exploring = False
-
-
-    def send_victim(self, victim_position, victim_type):
-        '''
-        Sends victim information to server
-        '''
-        #message = struct.pack("i i c", int(victim_position[0], victim_position[1]), victim_type)
-        #self.emitter.send(message)
-        return
-
-
-    def send_endgame(self, map):
-        '''
-        Sends endgame message and map to server
-        '''
-        #message = struct.pack("i i c", int((self.final_coords[0]+initial_gps[0])*100), int((self.final_coords[1]+initial_gps[1])*100), victim_type)
-        #self.emitter.send(message)        
-        return 
 
 
     def run_calibration(self):
@@ -96,8 +78,13 @@ class Robot:
             self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06]))
 
 
+        # Collect
+        if self.navigate.collecting: 
+            self.navigate.collecting = self.sensors.camera.collect(self.navigate, self.emitter)
+
+
         # Check if there's signs that the robot can safely go walking a straight path
-        if not self.navigate.exploring:
+        if not self.navigate.exploring and not self.navigate.collecting:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
 
@@ -131,7 +118,7 @@ class Robot:
 
 
         # Find a new point on the RRTs to go 
-        if not self.navigate.exploring:
+        if not self.navigate.collecting and not self.navigate.exploring:
             self.navigate.speed(0, 0)
             print("------------------------------------")
 
@@ -165,21 +152,23 @@ class Robot:
                 print(global_unexplored[0])
                 self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
-
         # Navigate
         if self.navigate.exploring:
             #self.global_rrt.update(self.sensors.gps.last, 0)
             action_list = self.navigate.navigate()
             for action in action_list:
+
                 if action[0] == "delete":
                     print("pedido de deleta para", action[1])
                     self.global_rrt.delete(action[1])
+
                 if action[0] == "connect":
                     print("pedido de ligação", self.sensors.gps.last, action[1])
                     self.global_rrt.connect(self.sensors.gps.last, action[1])
+
                 if action[0] == "collect":
                     print("pedido de coleta")
-                    self.sensors.camera.collect(self.navigate)
+                    self.navigate.collecting = True
                 
                 if action[0] == "exit":
                     definitive_map = np.array(self.map.print_tile_map())

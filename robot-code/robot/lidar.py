@@ -35,11 +35,11 @@ class Lidar:
             coordY_e = self.gps.front[1] + math.sin(self.gyro.last)*(-self.point_cloud[(i-2+512) % 512].x) + math.cos(self.gyro.last) * (-self.point_cloud[(i-2+512) % 512].y)
 
 
-            dist_ant = self.dist_coords(coordX, coordY, coordX_d, coordY_d)
-            dist_prox = self.dist_coords(coordX, coordY, coordX_e, coordY_e)
-            dist_ap = self.dist_coords(coordX_e, coordY_e, coordX_d, coordY_d)
+            dist_ant = self.dist_coords([coordX, coordY], [coordX_d, coordY_e])
+            dist_prox = self.dist_coords([coordX, coordY], [coordX_e, coordY_e])
+            dist_ap = self.dist_coords([coordX_e, coordY_e], [coordX_d, coordY_d])
 
-            if self.dist_coords(self.gps.front[0], self.gps.front[1], coordX, coordY) < 0.98:
+            if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.98:
                 if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
                     self.map.add_point([coordX, coordY])
                     for i in range(20): 
@@ -53,7 +53,7 @@ class Lidar:
     
 
     def ray_dist(self, ray):
-        self.lidar.point_cloud = np.array(self.lidar.lidar.getLayerPointCloud(2)[0:512])
+        self.lidar.point_cloud = np.array(self.lidar.getLayerPointCloud(2)[0:512])
         point = self.lidar.point_cloud[ray]
 
         coordX = self.gps.front[0] + math.cos(self.gyro.last) * (-point.x) - math.sin(self.gyro.last) * (-point.y)
@@ -62,6 +62,6 @@ class Lidar:
         return self.dist_coords(self.gps.last, [coordX, coordY])
     
     
-    def dist_coords(self, a, b, x, y):
-        dist = ((a-x)**2 + (b-y)**2)**0.5
+    def dist_coords(self, a, b):
+        dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
         return dist
