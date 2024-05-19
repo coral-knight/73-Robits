@@ -18,11 +18,11 @@ class Navigate:
         self.last_walk = [[0,0], self.sensors.gps.last]
 
         #Left wheel
-        self.wheel_left = self.hardware.getDevice("wheel1 motor")
+        self.wheel_left = self.hardware.getDevice("wheel2 motor")
         self.wheel_left.setPosition(float("inf"))
 
         #Right wheel
-        self.wheel_right = self.hardware.getDevice("wheel2 motor")
+        self.wheel_right = self.hardware.getDevice("wheel1 motor")
         self.wheel_right.setPosition(float("inf"))
 
 
@@ -47,9 +47,9 @@ class Navigate:
             while delta_angle > math.pi:
                 delta_angle = delta_angle - 2*math.pi
             if delta_angle >= 0:
-                self.speed(self.turn_velocity, -self.turn_velocity)
-            else:
                 self.speed(-self.turn_velocity, self.turn_velocity)
+            else:
+                self.speed(self.turn_velocity, -self.turn_velocity)
         
         else:
             #print("walking", point)

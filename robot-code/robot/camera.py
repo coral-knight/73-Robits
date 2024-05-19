@@ -29,7 +29,8 @@ class Camera:
 
         self.c_initial_tick = True
         self.c_dir = 0
-        self.c_initial_gyro = 0
+        self.c_last_tick_gyro = 0
+        self.c_total_gyro = 0
 
         self.c_found = False
         self.c_centered = False
@@ -74,7 +75,7 @@ class Camera:
     def collect(self, navigate, emitter):
         # Controller for all components and actions of the Collect function
 
-        print("coletando")
+        print("=======\nCollect")
 
         img_data = self.camera_right.getImage()
         img = np.array(np.frombuffer(img_data, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
@@ -82,19 +83,23 @@ class Camera:
         # img = self.image()
         
         if self.c_initial_tick:
-            self.c_dir = 1 if self.lidar.ray_dist(492) > self.lidar.ray_dist(20) else -1 # 1 if turning left and -1 if turning right
-            self.c_initial_gyro = self.gyro.last - self.c_dir*0.3
+            # c_dir = 1 if turning right and -1 if turning left
+            self.c_dir = 1 if self.lidar.ray_dist(492) > self.lidar.ray_dist(20) else -1 
+            self.c_last_tick_gyro = self.gyro.last
             self.c_initial_tick = False
-            print("initial_tick")
-            print(self.c_dir, self.c_initial_gyro)
 
-        if not self.c_found and abs(self.gyro.last - self.c_initial_gyro) < 0.25 or 2*math.pi - abs(self.gyro.last - self.c_initial_gyro) < 0.25:
+        if not self.c_found and self.c_total_gyro > 2*math.pi:
             self.c_initial_tick = True
+            self.c_total_gyro = 0
             print("rodou tudo")
             return False
-
-        if not self.c_found and self.is_wall([img.item(20, 63, 2), img.item(20, 63, 1), img.item(20, 63, 0)]):
+        
+        if not self.c_found and self.is_wall([img.item(10, 63, 2), img.item(10, 63, 1), img.item(10, 63, 0)]):
             navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
+
+            self.c_total_gyro += min(abs(self.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.gyro.last-self.c_last_tick_gyro))
+            self.c_last_tick_gyro = self.gyro.last
+
             self.c_found = False
             self.c_centered = False
             self.c_identified = False
@@ -104,15 +109,16 @@ class Camera:
             self.c_timer = 0
             self.c_far = False
 
-        elif self.lidar.ray_dist(0) < 0.08:
+        elif self.lidar.ray_dist(64) < 0.08:
             print("pixel diferente de parede")
             self.c_found = True
 
             # Center the victim within cameras' image
             if not self.c_centered:  
+                navigate.speed(self.c_dir*1, -self.c_dir*1)
                 left_count, right_count = 0, 0
-                while not self.is_wall([img.item(20, 63-left_count, 2), img.item(20, 63-left_count, 1), img.item(20, 63-left_count, 0)]): left_count += 1
-                while not self.is_wall([img.item(20, 63+right_count, 2), img.item(20, 63+right_count, 1), img.item(20, 63+right_count, 0)]): right_count -= 1
+                while not self.is_wall([img.item(10, 63-left_count, 2), img.item(10, 63-left_count, 1), img.item(10, 63-left_count, 0)]): left_count += 1
+                while not self.is_wall([img.item(10, 63+right_count, 2), img.item(10, 63+right_count, 1), img.item(10, 63+right_count, 0)]): right_count += 1
                 print("centralizando", left_count, right_count)
 
                 if (self.c_dir == 1 and left_count > right_count) or (self.c_dir == -1 and left_count < right_count): 
@@ -137,10 +143,11 @@ class Camera:
             elif self.c_sent <= 0: 
                 navigate.speed(0, 0)
                 self.c_timer += 1
+                print(self.c_timer*self.time_step)
 
-                if self.c_sent != -1 and self.c_timer*self.time_step > 4500:
+                if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
                     dist = self.lidar.ray_dist(64)
-                    sign_coords = [self.gps.front[0] + dist * math.sin(self.gyro.last+0.75), self.gps.front[1] + dist * math.cos(self.gyro.last+0.75)]
+                    sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last-0.5), self.gps.last[1] + dist * math.sin(self.gyro.last-0.5)]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("tempo de mandar")
                     print("coords", dist, sign_coords)
@@ -151,7 +158,7 @@ class Camera:
                     self.delete(sign_coords)
                     self.c_sent = -1
                 
-                if self.c_timer*self.time_step > 4550: 
+                if self.c_timer*self.time_step > 1550: 
                     print("terminou de mandar")
                     self.c_sent = 1
 
