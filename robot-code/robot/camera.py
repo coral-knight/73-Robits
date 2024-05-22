@@ -34,17 +34,29 @@ class Camera:
 
         self.c_found = False
         self.c_centered = False
+        self.c_far = False
         self.c_identified = False
         self.c_type = 'N'
         self.c_close = False
         self.c_sent = 0
         self.c_timer = 0
         self.c_collect_time = 4500
-        self.c_far = False
+        self.c_back = False
 
 
-    def image():
+    def joint_image(self):
         # Get cameras' images and join them into a single one
+
+        img_data_l = self.camera_left.getImage()
+        img_data_r = self.camera_right.getImage()
+        img_l = np.array(np.frombuffer(img_data_l, np.uint8).reshape((self.camera_left.getHeight(), self.camera_left.getWidth(), 4)))
+        img_r = np.array(np.frombuffer(img_data_r, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
+
+        img = np.empty([32,256,4])
+        img[0:, 0:128] = img_l[0:, 0:]
+        img[0:, 128:256] = img_r[0:, 0:]
+
+        return img
 
         return 
     
@@ -77,10 +89,7 @@ class Camera:
 
         print("=======\nCollect")
 
-        img_data = self.camera_right.getImage()
-        img = np.array(np.frombuffer(img_data, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
-        cv2.imwrite("right_camera.png", img)
-        # img = self.image()
+        img = self.joint_image()
         
         if self.c_initial_tick:
             # c_dir = 1 if turning right and -1 if turning left
@@ -94,7 +103,7 @@ class Camera:
             print("rodou tudo")
             return False
         
-        if not self.c_found and self.is_wall([img.item(10, 63, 2), img.item(10, 63, 1), img.item(10, 63, 0)]):
+        if not self.c_found and self.is_wall([img.item(16, 128, 2), img.item(16, 128, 1), img.item(16, 128, 0)]):
             navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
 
             self.c_total_gyro += min(abs(self.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.gyro.last-self.c_last_tick_gyro))
@@ -102,14 +111,15 @@ class Camera:
 
             self.c_found = False
             self.c_centered = False
+            self.c_far = False
             self.c_identified = False
             self.c_type = 'N'
             self.c_close = False
             self.c_sent = 0
             self.c_timer = 0
-            self.c_far = False
+            self.c_back = False
 
-        elif self.lidar.ray_dist(64) < 0.08:
+        elif self.lidar.ray_dist(0) < 0.08:
             print("pixel diferente de parede")
             self.c_found = True
 
@@ -117,12 +127,20 @@ class Camera:
             if not self.c_centered:  
                 navigate.speed(self.c_dir*1, -self.c_dir*1)
                 left_count, right_count = 0, 0
-                while not self.is_wall([img.item(10, 63-left_count, 2), img.item(10, 63-left_count, 1), img.item(10, 63-left_count, 0)]): left_count += 1
-                while not self.is_wall([img.item(10, 63+right_count, 2), img.item(10, 63+right_count, 1), img.item(10, 63+right_count, 0)]): right_count += 1
+                while not self.is_wall([img.item(16, 128-left_count, 2), img.item(16, 128-left_count, 1), img.item(16, 128-left_count, 0)]): left_count += 1
+                while not self.is_wall([img.item(16, 128+right_count, 2), img.item(16, 128+right_count, 1), img.item(16, 128+right_count, 0)]): right_count += 1
                 print("centralizando", left_count, right_count)
 
                 if (self.c_dir == 1 and left_count > right_count) or (self.c_dir == -1 and left_count < right_count): 
                     self.c_centered = True
+
+            # Get far to identify
+            #elif not self.c_far:  
+            #    print("distancia")
+            #    navigate.speed(-navigate.turn_velocity, -navigate.turn_velocity)
+            #    if self.lidar.ray_dist(0) > 0.07:
+            #        print("deu")
+            #        self.c_far = True
 
             # Identify the sign's type
             elif not self.c_identified:  
@@ -133,11 +151,12 @@ class Camera:
                 print("identificado", self.c_type)
 
             # Get closer to send the right sign
-            #elif not self.c_close:  
-            #    print("aproxima")
-            #    navigate.speed(self.c_dir*navigate.turn_velocity, self.c_dir*navigate.turn_velocity)
-            #    if self.lidar.ray_dist(0) < 0.043:
-            #        self.c_close = True'''
+            elif not self.c_close:  
+                print("aproxima")
+                navigate.speed(navigate.turn_velocity, navigate.turn_velocity)
+                if self.lidar.ray_dist(0) < 0.05:
+                    print("deu")
+                    self.c_close = True
 
             # Send the sign with emitter
             elif self.c_sent <= 0: 
@@ -146,13 +165,15 @@ class Camera:
                 print(self.c_timer*self.time_step)
 
                 if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
-                    dist = self.lidar.ray_dist(64)
-                    sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last-0.5), self.gps.last[1] + dist * math.sin(self.gyro.last-0.5)]
+                    dist = self.lidar.ray_dist(0)
+                    sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last), self.gps.last[1] + dist * math.sin(self.gyro.last)]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("tempo de mandar")
                     print("coords", dist, sign_coords)
 
-                    message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((sign_coords[1]+self.gps.initial[2])*100), sign_type)
+                    a = self.gps.gps.getValues()
+
+                    message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     emitter.send(message)
 
                     self.delete(sign_coords)
@@ -163,26 +184,17 @@ class Camera:
                     self.c_sent = 1
 
             # Get back to initial position
-            #elif not self.c_far:  
-            #    print("distancia")
-            #    navigate.speed(-self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
-            #    if self.lidar.ray_dist(0) > 0.055:
-            #        self.c_far = True
+            elif not self.c_back:  
+                print("volta")
+                navigate.speed(-navigate.turn_velocity, -navigate.turn_velocity)
+                if self.lidar.ray_dist(0) > 0.055:
+                    self.c_back = True
+                    print("deu")
                     
             else:
                 print("volta a rodar")
                 navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
                 self.c_found = False
-
-
-        '''
-        closest = [-1, 1000]
-        for i in range(len(self.sign_list)):
-            sign = self.sign_list[i]
-            if self.dist_coords(self.gps.last, sign[1]) < closest[1]:
-                closest = [i, self.dist_coords(self.gps.last, sign[1])]
-        self.sign_list.pop(closest[0])
-        '''
 
 
         return True

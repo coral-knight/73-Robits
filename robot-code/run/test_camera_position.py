@@ -302,8 +302,22 @@ def run_simulation():
 
 
 while robot.step(time_step) != -1:
-    current_tick += 1
+    '''current_tick += 1
     if current_tick <= calibration_timer:
         run_calibration()
     else:
-        run_simulation()
+        run_simulation()'''
+    
+    a1 = camera_right.getImage()
+    a2 = camera_left.getImage()
+    b1 = np.array(np.frombuffer(a2, np.uint8).reshape((camera_right.getHeight(), camera_right.getWidth(), 4)))
+    b2 = np.array(np.frombuffer(a1, np.uint8).reshape((camera_right.getHeight(), camera_right.getWidth(), 4)))
+
+
+    b = np.empty([32,256,4])
+
+    b[0:, 0:128] = b1[0:, 0:]
+    b[0:, 128:256] = b2[0:, 0:]
+
+    cv2.imwrite("joint.png", b)
+    
