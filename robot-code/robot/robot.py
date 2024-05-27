@@ -66,7 +66,7 @@ class Robot:
 
         self.sensors.update(self.current_tick)
 
-        if self.current_tick == self.calibration_timer+1:
+        '''if self.current_tick == self.calibration_timer+1:
             self.navigate.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
@@ -75,7 +75,7 @@ class Robot:
         # TEST
         if self.current_tick == 300:
             print("adicionei a vítima")
-            self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06]))
+            self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06], [0, math.pi]))
 
 
         # Collect
@@ -84,9 +84,9 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if not self.navigate.exploring and not self.navigate.collecting:
+        if self.current_tick % 20 == 0 and not self.navigate.collecting and not self.navigate.walk_collect:
             for sign in self.sensors.camera.sign_list:
-                # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
+                # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
                 # Create [x, y] slightly away from the sign's wall (vectors)
                 [a, b] = sign[1]
@@ -101,15 +101,14 @@ class Robot:
 
                 # Robot's angle to the sign and wall angulation
                 ang = math.atan2(b - self.sensors.gps.last[1], a - self.sensors.gps.last[0])
-                ang_min = math.atan2(bd-be, ad-ae)
-                ang_max = math.atan2(be-bd, ae-ad)  
+                [ang_min, ang_max] = sign[4] 
 
-                print("sign", sign[1], [x, y])
-                print("angles", ang, ang_min, ang_max)
+                #print("sign", sign[1], [x, y])
+                #print("angles", ang, ang_min, ang_max)
 
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
-                    print("right angle")
+                    #print("right angle")
                     if not self.wall_between(self.sensors.gps.last, [x, y]):
                         print("sem parede")
                         self.navigate.exploring = True
@@ -183,7 +182,7 @@ class Robot:
                     map_evaluate_request = struct.pack('c', b'M')
                     self.emitter.send(map_evaluate_request)
                     exit_mes = struct.pack('c', b'E')
-                    self.emitter.send(exit_mes)
+                    self.emitter.send(exit_mes)'''
         
         return
         

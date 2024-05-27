@@ -14,6 +14,7 @@ class Navigate:
 
         self.exploring = False
         self.collecting = False
+        self.walk_collect = False
         self.action_list = []
         self.last_walk = [[0,0], self.sensors.gps.last]
 
@@ -81,9 +82,10 @@ class Navigate:
             name = self.action_list[0][0]
             action = self.action_list[0][1]
             arg = self.action_list[0][2]
+            last_arg = self.action_list[len(self.action_list)-1][2]
 
             if name == "Walk To":
-                if arg == False and self.wall_between(self.sensors.gps.last, action):
+                if arg == 0 and self.wall_between(self.sensors.gps.last, action):
                     print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
                     self.action_list = []
@@ -91,6 +93,16 @@ class Navigate:
                     self.last_walk[1] = self.sensors.gps.last
                     print("atual e last:", self.last_walk[1], self.last_walk[0])
                     return [["delete", action], ["connect", self.last_walk[0]]]
+                
+                if len(self.action_list) > 1 and last_arg == 2:
+                    print("added collect action")
+                    self.action_list = self.action_list[len(self.action_list)-1:]
+                    self.last_walk[0] = self.last_walk[1]
+                    self.last_walk[1] = self.sensors.gps.last
+                    print("atual e last:", self.last_walk[1], self.last_walk[0])
+                    return [["delete", action], ["connect", self.last_walk[0]]]
+                
+                if arg == 2: self.walk_collect = True
                 
                 return self.walk_to(action, arg)
 

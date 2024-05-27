@@ -61,6 +61,13 @@ class Lidar:
 
         return self.dist_coords(self.gps.last, [coordX, coordY])
     
+
+    def ray_front_dist(self, ray):
+        self.lidar.point_cloud = np.array(self.lidar.getLayerPointCloud(2)[0:512])
+        point = self.lidar.point_cloud[ray]
+
+        return ((point.x)**2+(point.y)**2)**0.5
+    
     
     def dist_coords(self, a, b):
         dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5

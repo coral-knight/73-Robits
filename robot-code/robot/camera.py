@@ -26,6 +26,7 @@ class Camera:
         self.left_size = [128, 40]
         self.right_size = [128, 40]
         self.sign_list = []
+        self.sign_colleted = []
 
         self.c_initial_tick = True
         self.c_dir = 0
@@ -57,8 +58,6 @@ class Camera:
         img[0:, 128:256] = img_r[0:, 0:]
 
         return img
-
-        return 
     
 
     def is_wall(self, color):
@@ -75,13 +74,19 @@ class Camera:
         return yes
     
 
-    def delete(self, coords):
+    def collected(self, coords):
         closest = [-1, 1000]
         for i in range(len(self.sign_list)):
             sign = self.sign_list[i]
             if self.dist_coords(coords, sign[1]) < closest[1]:
                 closest = [i, self.dist_coords(coords, sign[1])]
+
+        print("closest", self.sign_list[closest[0]])
+
+        self.sign_colleted.append(self.sign_list[closest[0]])
         self.sign_list.pop(closest[0])
+
+        return
 
 
     def collect(self, navigate, emitter):
@@ -176,7 +181,7 @@ class Camera:
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     emitter.send(message)
 
-                    self.delete(sign_coords)
+                    self.collected(sign_coords)
                     self.c_sent = -1
                 
                 if self.c_timer*self.time_step > 1550: 
@@ -196,9 +201,179 @@ class Camera:
                 navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
                 self.c_found = False
 
-
         return True
     
+
+    def find(self, image):
+        img = image
+
+        topwall = np.zeros(128, dtype=int) 
+        deltas = [] 
+        x_right = -1 
+        x_left = 129 
+
+        for y in range(1, 31): 
+            for x in range(0, 128): 
+                colour_rgb1 = [img.item(y, x, 2), img.item(y, x, 1), img.item(y, x, 0)] 
+                colour_rgb2 = [img.item(y+1, x, 2), img.item(y+1, x, 1), img.item(y+1, x, 0)]
+                colour_rgb3 = [img.item(y-1, x, 2), img.item(y-1, x, 1), img.item(y-1, x, 0)]
+
+                if self.is_wall(colour_rgb1) and self.is_wall(colour_rgb2) and not self.is_wall(colour_rgb3): 
+                    if topwall[x] == 1: 
+                        topwall[x] = y 
+
+                        up_camera = colour_rgb3
+                        right_camera = colour_rgb3
+
+                        up_count = 0
+                        right_count = 0
+
+                        # enquanto não for parede, up_camera
+                        while((y-up_count) > 0 and not self.is_wall(up_camera)):
+                            up_count = up_count + 1
+                            up_camera = [img.item(y-up_count, x, 2), img.item(y-up_count, x, 1), img.item(y-up_count, x, 0)]
+                            #print("going up", (y-up_count), x, up_camera)
+
+                        up_count = int((up_count+1)/2)
+
+                        # enquanto não for parede, right_camera
+                        while((x+right_count) < 128 and not self.is_wall(right_camera)):
+                            right_count = right_count + 1
+                            right_camera = [img.item(y-up_count, x+right_count, 2), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 0)]
+                            #print("going right", (y-up_count), x+right_count, right_camera)
+
+                        if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
+                            x_left = x
+                            x_right = x+right_count-1
+                            #print("vítima", x_left, x_right, y-up_count, len(deltas)) 
+
+                            deltas.append([x_left, x_right])
+
+                    else: 
+                        ceiling = [img.item(0, x, 2), img.item(0, x, 1), img.item(0, x, 0)] 
+                        if self.is_wall(ceiling):
+
+                            # canto inferior esquerdo da vítima
+                            up_camera = colour_rgb3 
+                            right_camera = colour_rgb3  
+
+                            up_count = 0 
+                            right_count = 0  
+
+                            # enquanto for parede, up_camera
+                            while((y-up_count) > 0 and not self.is_wall(up_camera)): 
+                                up_count = up_count + 1 
+                                up_camera = [img.item(y-up_count, x, 2), img.item(y-up_count, x, 1), img.item(y-up_count, x, 0)] 
+                                #print("going up 2", (y-up_count), x, up_camera)
+
+                            up_count = int((up_count+1)/2) 
+
+                            # enquanto for parede, right_camera
+                            while((x+right_count) < 127 and not self.is_wall(right_camera)):
+                                right_count = right_count + 1 # conta larura
+                                right_camera = [img.item(y-up_count, x+right_count, 2), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 0)] # leva pixel para a direita
+                                #print("going right 2", (y-up_count), x+right_count, right_camera)
+
+
+                            if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
+                                x_left = x 
+                                x_right = x+right_count-1 
+                                #print("vítima2", x_left, x_right, len(deltas)) 
+                                
+                                deltas.append([x_left, x_right])
+
+                        elif topwall[x] == 0: # como tem pixel de não-parede => topwall = 1 de céu
+                            topwall[x] = 1
+        return deltas, topwall
+
+
+    def update(self):
+        #img = np.array(np.frombuffer(img_data, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
+        #("img" + "_" + type_camera + ".png", img)
+
+        print("process cameras =========")
+
+        img = self.joint_image()
+        deltas, topwall = self.find(img)
+
+        for d in deltas:
+            [x_left, x_right] = d
+            
+            if abs(topwall[x_right]-topwall[x_left]) < 5 and (topwall[x_right] > 1 or self.is_wall([img.item(0, x_right, 2), img.item(0, x_right, 1), img.item(0, x_right, 0)])):
+                print("aqui", x_left, x_right)
+                #cv2.imwrite("possible_victim_" + str(tick_count) + ".png", img)
+
+                img_angle = math.atan((-((x_left+x_right)/2)+128) * math.tan(3/2) / 128)
+
+                raio = round((math.pi-(img_angle))*256/math.pi)
+                raio = (raio+255) % 512
+
+                dist = self.lidar.ray_front_dist(raio)
+                print("dist", dist)
+                print("raio", raio)
+                print("img angle", img_angle)
+                print("ang total", self.gyro.last+img_angle)
+
+                if dist < 0.18:
+                    a = self.gps.front[0] + dist * (math.cos(self.gyro.last+img_angle))
+                    b = self.gps.front[1] + dist * (math.sin(self.gyro.last+img_angle))
+
+                    print("coords", a, b)
+
+                    rd = 1
+
+                    if dist < 0.08:
+                        rd = 3
+
+                    aux = 2*math.pi/512
+
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512) * (math.cos(self.gyro.last+img_angle+rd*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512) * (math.sin(self.gyro.last+img_angle+rd*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512) * (math.cos(self.gyro.last+img_angle-rd*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512) * (math.sin(self.gyro.last+img_angle-rd*aux))
+
+                    ang = math.atan2(b - self.gps.last[1], a - self.gps.last[0]) 
+                    ang_max = math.atan2(be-bd, ae-ad)
+                    ang_min = math.atan2(bd-be, ad-ae)
+                    
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-6+512)%512) * (math.cos(self.gyro.last+img_angle+6*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-6+512)%512) * (math.sin(self.gyro.last+img_angle+6*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+6)%512) * (math.cos(self.gyro.last+img_angle-6*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+6)%512) * (math.sin(self.gyro.last+img_angle-6*aux))
+
+                    if (self.dist_coords([ae, be], [ad, bd]) < 0.05) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
+                        # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
+
+                        print("wall angles", ang, ang_min, ang_max)
+                        print(self.dist_coords([ae, be], [ad, bd]))
+
+                        cont = 0
+                        vitima_igual = False
+
+                        print("vai ver done")
+                        for v in self.sign_colleted:
+                            if (self.dist_coords([a, b], v[1]) < 0.033 and (abs(v[4][0]-ang_min) < math.pi/3 or 2*math.pi-abs(v[4][0]-ang_min) < math.pi/3)):
+                                print("já pegou")
+                                vitima_igual = True
+
+                        print("certo", len(self.sign_list))
+                        for v in self.sign_list:
+                            if self.dist_coords([a, b], v[1]) < 0.033:
+                                print("vitima perto")
+                                if abs(v[4][0]-ang_min) < 0.3 or 2*math.pi-abs(v[4][0]-ang_min) < 0.3:
+                                    if vitima_igual:
+                                        self.sign_list.pop(cont)
+                                    else:
+                                        self.sign_list[cont] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]]
+                                        print("atualizei", a, b)
+                                    vitima_igual = True
+                            cont = cont + 1
+
+                        if not vitima_igual and ((abs(ang_max-ang) > 0.2 and abs(ang-ang_min) > 0.2) or dist < 0.8):
+                            print("adicionei 1", a, b)
+                            self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]])
+                            cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
+
     
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
 
