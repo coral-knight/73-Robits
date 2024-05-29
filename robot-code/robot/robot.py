@@ -66,16 +66,16 @@ class Robot:
 
         self.sensors.update(self.current_tick)
 
-        '''if self.current_tick == self.calibration_timer+1:
+        if self.current_tick == self.calibration_timer+1:
             self.navigate.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
         
 
         # TEST
-        if self.current_tick == 300:
-            print("adicionei a vítima")
-            self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06], [0, math.pi]))
+        #if self.current_tick == 300:
+        #    print("adicionei a vítima")
+        #    self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06], [0, math.pi]))
 
 
         # Collect
@@ -94,7 +94,7 @@ class Robot:
                 [ad, bd] = sign[3]
 
                 vi = [ad-ae, bd-be]
-                u = [-1*vi[1], -1*vi[0]]
+                u = [vi[1], -1*vi[0]]
 
                 x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
                 y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
@@ -103,8 +103,10 @@ class Robot:
                 ang = math.atan2(b - self.sensors.gps.last[1], a - self.sensors.gps.last[0])
                 [ang_min, ang_max] = sign[4] 
 
-                #print("sign", sign[1], [x, y])
-                #print("angles", ang, ang_min, ang_max)
+                print("sign", sign[1], [x, y])
+                print("left", [ae, be])
+                print("right", [ad, bd])
+                print("angles", ang, ang_min, ang_max)
 
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
@@ -182,7 +184,7 @@ class Robot:
                     map_evaluate_request = struct.pack('c', b'M')
                     self.emitter.send(map_evaluate_request)
                     exit_mes = struct.pack('c', b'E')
-                    self.emitter.send(exit_mes)'''
+                    self.emitter.send(exit_mes)
         
         return
         
