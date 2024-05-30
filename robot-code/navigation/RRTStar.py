@@ -365,7 +365,7 @@ class RRTStar:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.035:
+                            if v != 0 and self.dist_coords(p, v) < 0.037:
                                 return True
                 
         return False

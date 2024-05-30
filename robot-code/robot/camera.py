@@ -129,7 +129,7 @@ class Camera:
         elif self.lidar.ray_dist(0) < 0.08:
             for c in self.c_collected:
                 print("diff", c, min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)))
-                if not self.c_found and min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)) < 0.3:
+                if not self.c_found and min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)) < 0.1:
                     return True
 
             print("pixel diferente de parede")
