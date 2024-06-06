@@ -15,26 +15,24 @@ class Robot:
     
     def __init__(self, time_step):
         self.time_step = time_step
-        
-        self.calibration_timer = 50
-        self.current_tick = 0
 
         self.hardware = Hardware()
-
         self.map = Map()
-        
         self.sensors = Sensors(self.hardware, self.time_step, self.map)
-
         self.navigate = Navigate(self.hardware, self.sensors, self.map)
-        
+
         # Receiver
         self.receiver = self.hardware.getDevice("receiver")
         self.receiver.enable(self.time_step)
 
         # Emmiter
         self.emitter = self.hardware.getDevice("emitter")
-
-        self.exploring = False
+        
+        self.current_tick = 0
+        self.calibration_timer = 0
+        self.calibrated = False
+        self.c_total_gyro = 0
+        self.c_last_tick_gyro = 0
 
 
     def run_calibration(self):
@@ -51,11 +49,19 @@ class Robot:
             self.navigate.speed(2, 2)
         elif self.current_tick == 5:
             self.sensors.gyro.calibrate(self.sensors.gps.last)
+            self.c_last_tick_gyro = self.sensors.gyro.last
         elif self.current_tick < 10:
             self.navigate.speed(-2, -2)
         else:
-            self.navigate.speed(0, 0)
             self.sensors.update(self.current_tick)
+
+            self.navigate.speed(2, -2)
+            self.c_total_gyro += min(abs(self.sensors.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.sensors.gyro.last-self.c_last_tick_gyro))
+            self.c_last_tick_gyro = self.sensors.gyro.last
+
+            if self.c_total_gyro > 2*math.pi:
+                self.calibrated = True
+                self.calibration_timer = self.current_tick
         return
 
 
@@ -195,7 +201,7 @@ class Robot:
         '''
         while self.hardware.step(self.time_step) != -1:
             self.current_tick += 1
-            if self.current_tick <= self.calibration_timer:
+            if not self.calibrated:
                 self.run_calibration()
             else:
                 self.run_simulation()

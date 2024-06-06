@@ -6,12 +6,13 @@ import cv2
 
 class Camera:
 
-    def __init__(self, hardware, time_step, gps, gyro, lidar):
+    def __init__(self, hardware, time_step, gps, gyro, lidar, map):
         self.hardware = hardware
         self.time_step = time_step
         self.gps = gps
         self.gyro = gyro
         self.lidar = lidar
+        self.map = map
 
         # Hardware
         self.camera_left = self.hardware.getDevice("camera1")
@@ -211,6 +212,30 @@ class Camera:
 
         return True
     
+
+    def seen(self):
+        ray_left = round((math.pi-(0.75))*256/math.pi)
+        ray_left = (ray_left+255) % 512 + 5
+
+        ray_right = round((math.pi+(0.75))*256/math.pi)
+        ray_right = (ray_right+255) % 512 - 5
+
+        ray = ray_left
+        while ray != ray_right:
+            point = self.lidar.point_cloud[ray]
+
+            coordX = self.gps.front[0] + math.cos(self.gyro.last) * (-point.x) - math.sin(self.gyro.last) * (-point.y)
+            coordY = self.gps.front[1] + math.sin(self.gyro.last) * (-point.x) + math.cos(self.gyro.last) * (-point.y)
+
+            if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.8:
+                for i in range(35): 
+                    [x, y] = [(i*self.gps.front[0]+(34-i)*coordX)/34, (i*self.gps.front[1]+(34-i)*coordY)/34]
+                    if self.dist_coords(self.gps.front, [x, y]) > 0.037 and self.dist_coords([coordX, coordY], [x, y]) > 0.03:
+                        self.map.seen([x, y])
+
+            ray += 1
+            if ray == 512: ray = 0
+
 
     def find(self, image): # find objects in camera
         img = image

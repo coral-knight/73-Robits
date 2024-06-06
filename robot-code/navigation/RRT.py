@@ -145,7 +145,7 @@ class RRT:
             if added:
                 map_p = self.map.real_to_map(point)
                 # Sujeito a mudanças no '& 2 == 0' (por enquanto só verifica se não está marcado por 3)
-                if self.map.seen_map[map_p[0], map_p[1]] & 2 == 0:
+                if self.map.seen_map[map_p[0], map_p[1]] < 2:
                     mapx, mapy = self.real_to_map(point)
                     unexplored.append([point, [[mapx, mapy], len(self.graph[mapx, mapy])-1]]) # [ponto (coordenada), posição]
 

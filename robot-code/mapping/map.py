@@ -75,7 +75,6 @@ class Map:
 
     def add_point(self, point):
         self.expand(point)
-        self.seen(point)
 
         mapx, mapy = self.real_to_map(point)
 
@@ -91,7 +90,7 @@ class Map:
         mapx, mapy = self.real_to_map(point)
         if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
             if self.seen_map[mapx, mapy] == 0:
-                self.seen_map[mapx, mapy] = 1
+                self.seen_map[mapx, mapy] = 2
 
         return
     
