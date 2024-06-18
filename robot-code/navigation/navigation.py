@@ -56,7 +56,7 @@ class Navigate:
             #print(self.sensors.gps.last)
             #print(self.dist_coords(self.sensors.gps.last, point))
 
-            if self.dist_coords(self.sensors.gps.last, point) > 0.005:
+            if self.dist_coords(self.sensors.gps.last, point) > 0.003:
                 self.speed(self.velocity, self.velocity)
             else:
                 print("terminou andar, argument: ", arg)
@@ -271,7 +271,7 @@ class Navigate:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(a, p) > 0.037:
+                            if v != 0 and self.dist_coords(p, v) < 0.0368 and self.dist_coords(a, p) > 0.037:
                                 print("parede", v, self.dist_coords(p, v))
                                 return True
                 

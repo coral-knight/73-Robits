@@ -77,15 +77,21 @@ class RRTStar:
         
         print("pos", real_point, [x, y])
 
+        closest = [[1000,1000], 0]
+        dist = 1000
+
         for i in range(-1, 2):
             for j in range(-1, 2):
                 if x+i >= 0 and x+i < np.size(self.graph, 0) and y+j >= 0 and y+j < np.size(self.graph, 1):
                     c = 0
                     for v in self.graph[x+i, y+j]:
-                        if v != 0 and self.dist_coords(v[0], real_point) < 0.005: return [[x+i, y+j], c]
+                        if v != 0 and self.dist_coords(v[0], real_point) < dist: 
+                            closest = [[x+i, y+j], c]
+                            dist = self.dist_coords(v[0], real_point)
                         c += 1
 
-        return [[1000, 1000], 0]
+        if dist < 0.1: return closest
+        else: return [[1000, 1000], 1000]
         
 
     def map_to_real(self, map_point):
@@ -155,7 +161,7 @@ class RRTStar:
                         for v in self.graph[x, y]:
                             #if v != 0 and v[0] == point: return [1000, 1000], [[0, 0], 0]
                             if v != 0 and self.dist_coords(v[0], point) <= self.radius and not self.wall_between(v[0], point) and v[3] == True:
-                                if self.dist_coords(v[0], point) < 0.006: return [1000, 1000], [[0, 0], 0]
+                                if self.dist_coords(v[0], point) < 0.003: return [1000, 1000], [[0, 0], 0]
                                 neighbours.append([v, cont])
                                 if self.total_dist([[x, y], cont]) + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
@@ -197,7 +203,7 @@ class RRTStar:
 
     def connect(self, pos, to):
         # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk" action)
-        if self.dist_coords(pos, to) < 0.005: return
+        if self.dist_coords(pos, to) < 0.003: return
 
         px, py = self.real_to_map(pos)
         tx, ty = self.real_to_map(to)

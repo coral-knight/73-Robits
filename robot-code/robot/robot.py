@@ -138,12 +138,12 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 3000:
                 cont += 1
                 local_unexplored = local_rrt.explore(10)
                 global_unexplored = self.global_rrt.explore(1)
 
-            if cont == 1000: 
+            if cont == 3000: 
                 print("n achou nada")
                 print("volta spawn")
                 self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
