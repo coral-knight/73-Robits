@@ -22,12 +22,12 @@ Our documentation for the 2024 competition:
 ## Gengar
 Here is Gengar, our little pet that follows us through the entire journey
 <!-- <div style="text-align: justify;"> -->
-<div style="display:flex; justify-content: space-around;">
+<div style="display:flex; width: 100%; justify-content: space-around;">
 <img src="gengar.png" alt="Gengar" style="height: 250px;"/> <img src="gengarWithTrophy.png" alt="Gengar with 2023's Trophy" style="height: 250px;"/>
 </div>
 
-⠀⠀⠀⠀⠀⢸⠓⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀  
-⠀⠀⠀⠀⠀⢸⠀⠀⠑⢤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀  
+⠀⠀⠀⠀⠀⢸⠓⢄⡀  
+⠀⠀⠀⠀⠀⢸⠀⠀⠑⢤⡀  
 ⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠙⢤⡷⣤⣦⣀⠤⠖⠚⡿⠁  
 ⣠⡿⠢⢄⡀⠀⡇⠀⠀⠀⠀⠀⠉⠀⠀⠀⠀⠀⠸⠷⣶⠂⠀⠀⠀⣀⣀  
 ⢸⣃⠀⠀⠉⠳⣷⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⠉⠉⠉⢉⡭⠋  
