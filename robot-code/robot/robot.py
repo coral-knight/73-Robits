@@ -152,21 +152,11 @@ class Robot:
                 print("found LOCAL unexplored")
                 print(local_unexplored[0])
 
-                print("local:")
-                local_rrt.print()
-                print("global:")
-                self.global_rrt.print()
-
                 self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
 
             elif len(global_unexplored) > 0:
                 print("found GLOBAL unexplored")
                 print(global_unexplored[0])
-
-                print("local:")
-                local_rrt.print()
-                print("global:")
-                self.global_rrt.print()
 
                 self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
