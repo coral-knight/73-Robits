@@ -55,7 +55,7 @@ class Camera:
         img_l = np.array(np.frombuffer(img_data_l, np.uint8).reshape((self.camera_left.getHeight(), self.camera_left.getWidth(), 4)))
         img_r = np.array(np.frombuffer(img_data_r, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
 
-        img = np.empty([40,256,4])
+        img = np.zeros([40,256,4], dtype="int")
         img[0:, 0:128] = img_l[0:, 0:]
         img[0:, 128:256] = img_r[0:, 0:]
 
@@ -189,6 +189,8 @@ class Camera:
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     emitter.send(message)
 
+                    self.map.add_token(self.c_type, sign_coords)
+
                     self.collected(sign_coords)
                     self.c_collected.append(self.gyro.last)
                     self.c_sent = -1
@@ -320,7 +322,7 @@ class Camera:
         return deltas, topwall
 
 
-    def update(self): 
+    def update_token(self): 
         #img = np.array(np.frombuffer(img_data, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
         #("img" + "_" + type_camera + ".png", img)
 
@@ -339,9 +341,9 @@ class Camera:
                 #img_angle = math.atan((-((x_left+x_right)/2)+128) * math.tan(3/2) / 128)
                 #for image in left and in right
                 if ((x_left+x_right)/2) <= 128: 
-                    img_angle = math.atan((-((x_left+x_right)/2)+64) * math.tan(1.5/2) / 64) + 0.75
+                    img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 63.5) + 0.75
                 if ((x_left+x_right)/2) > 128:
-                    img_angle = math.atan((-((x_left+x_right)/2-128)+64) * math.tan(1.5/2) / 64) - 0.75
+                    img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 63.5) - 0.75
                 
                 raio = round((math.pi-(img_angle))*256/math.pi)
                 raio = (raio+255) % 512
@@ -411,6 +413,109 @@ class Camera:
                             #print("adicionei 1", a, b)
                             self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]])
                             cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
+
+
+    def ground_colour(self, colour_hsv, colour_rgb):
+        if (abs(colour_rgb[0] - 31) <= 5 and abs(colour_rgb[1] - 31) <= 5 and abs(colour_rgb[2] - 31) <= 5) or (abs(colour_rgb[0] - 24) <= 5 and abs(colour_rgb[1] - 24) <= 5 and abs(colour_rgb[2] - 24) <= 5) or (abs(colour_rgb[0] - 11) <= 5 and abs(colour_rgb[1] - 11) <= 5 and abs(colour_rgb[2] - 11) <= 5):
+            return 'bh' # blackhole
+        elif abs(colour_hsv[0] - 0) <= 3 and abs(colour_hsv[1] - 0) <= 30: return '0' # normal ground
+        elif abs(colour_hsv[0] - 19) <= 3 and abs(colour_hsv[1] - 125) <= 30: return 'sw' # swamp
+        elif abs(colour_hsv[0] - 120) <= 3 and abs(colour_hsv[1] - 190) <= 30: return 'b' # blue (1-2)
+        elif abs(colour_hsv[0] - 133) <= 3 and abs(colour_hsv[1] - 170) <= 30: return 'p' # purple (2-3)
+        elif abs(colour_hsv[0] - 0) <= 3 and abs(colour_hsv[1] - 190) <= 30: return 'r' # red (3-4)
+        elif abs(colour_hsv[0] - 60) <= 3 and abs(colour_hsv[1] - 220) <= 30: return 'g' # green (1-4)
+        elif abs(colour_hsv[0] - 22) <= 3 and abs(colour_hsv[1] - 205) <= 30: return 'o' # orange (2-4)
+        elif abs(colour_hsv[0] - 30) <= 3 and abs(colour_hsv[1] - 205) <= 30: return 'y' # yellow (1-3)
+        else: return 'cp' # checkpoint  
+
+
+    def bfs_tile(self, bgr_img, hsv_img, xi, yi, colour):
+        x_left = 129
+        x_right = -1
+        y_up = 41
+        y_down = -1
+
+        queue = [[xi, yi]]
+        while len(queue) != 0:
+            [x, y] = queue[0]
+            queue.pop(0)
+
+            if y <= bgr_img.shape[0]-1 and y >= 0 and x <= bgr_img.shape[1]-1 and x >= 0:
+                colour_rgb = [bgr_img.item(y, x, 2), bgr_img.item(y, x, 1), bgr_img.item(y, x, 0)] 
+                colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
+            
+                bgr_img[y, x] = [192, 192, 192] # paint as normal ground
+                hsv_img[y, x] = [0, 0, 0] # paint as normal ground
+                
+                if self.is_wall(colour_rgb) or self.ground_colour(colour_hsv, colour_rgb) != colour: continue
+
+                queue.append([x+1, y])
+                queue.append([x-1, y])
+                queue.append([x, y+1])
+                queue.append([x, y-1])
+                    
+                x_left = min(x_left, x)
+                x_right = max(x_right, x)
+                y_up = min(y_up, y)
+                y_down = max(y_down, y)
+
+        return [bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]]
+
+
+    def update_ground(self):
+        img = np.float32(self.joint_image())
+        bgr_img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+
+        for x in range(0, 256):
+            for y in range(39, -1, -1):
+                colour_rgb = [bgr_img.item(y, x, 2), bgr_img.item(y, x, 1), bgr_img.item(y, x, 0)] 
+                colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)] 
+                g_colour = self.ground_colour(colour_hsv, colour_rgb)
+
+                if self.is_wall(colour_rgb): break
+                if g_colour == '0': continue
+
+                [bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]] = self.bfs_tile(bgr_img, hsv_img, x, y, g_colour)
+                cv2.imwrite("depoisbfs_bgr.png", bgr_img)
+                cv2.imwrite("depoisbfs_hsv.png", hsv_img)
+
+                if y_down == -1: continue
+                if g_colour != 'sw': continue
+                
+                #vertical_fov = 0.566587633
+                vertical_fov = 2 * math.atan(math.tan(1.5 * 0.5) * (40 / 128))
+                angle_Y = math.atan((((y_up + y_down)/2)-19.5) * math.tan(vertical_fov/2) / 19.5)
+
+                # altura correta: 0.0303
+                # cam_height = (0.0423*(1-((angle_Y-0.12)/(0.199-0.12))) + 0.0303*(((angle_Y-0.12)/(0.199-0.12))))/2 # FEIO
+                #print("robo height", self.gps.gps.getValues())
+                cam_height = 0.0303#+0.0120 # FEIO
+                #if angle_Y > 0.199: cam_height -= 0.0120 # FEIO
+
+                cam_height = math.atan((((y_up + y_down)/2)-19.5) * math.tan(0.0303) / 19.5)
+                # Pegar cam_height 
+
+                distance = cam_height/math.tan(angle_Y)
+                if distance < 0.12 or distance > 0.3: continue # FEIO
+
+                horizontal_fov = 1.5
+                if ((x_left+x_right)/2) <= 128: 
+                    angle_X = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(horizontal_fov/2) / 63.5) + 0.75
+                if ((x_left+x_right)/2) > 128:
+                    angle_X = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(horizontal_fov/2) / 63.5) - 0.75
+
+                coord_X = self.gps.last[0] + distance * math.cos(self.gyro.last + angle_X)
+                coord_Y = self.gps.last[1] + distance * math.sin(self.gyro.last + angle_X)
+
+                print("groung colour", g_colour)
+                print("AngleY", angle_Y)
+                print("Cam Height", cam_height)
+                print("AngleX", angle_X)
+                print("distance", distance)
+                print("GROUND COORDS", [coord_X, coord_Y])
+
+                #self.map.add_ground(g_colour, [coord_X, coord_Y])
 
     
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''

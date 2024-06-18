@@ -109,7 +109,6 @@ class Map:
                 print(self.map[x, y], end=" ")
             print(" ")
 
-
     
     def print_tile_map(self):
         # Marca como 1 onde tem parede, em vez de array de pontos 

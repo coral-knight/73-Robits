@@ -205,7 +205,9 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             else:
-                self.run_simulation()
+                #self.run_simulation()
+                self.sensors.update(self.current_tick)
+                self.navigate.speed(0,0)
         return
     
 

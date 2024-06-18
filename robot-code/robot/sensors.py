@@ -25,7 +25,8 @@ class Sensors:
             self.camera.seen()
 
         if current_tick % 10 == 0:
-            self.camera.update()
+            self.camera.update_token()
+            self.camera.update_ground()
 
         for i in range(-1, 2):
             for j in range(-1, 2):

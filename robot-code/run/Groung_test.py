@@ -53,7 +53,6 @@ def dist_coords(a, b):
     dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
     return dist
 
-
 # def get_px(img):
 #     for y in range(0, 32): #passa por todas as posições de pixel 
 #         for x in range(0, 128):
