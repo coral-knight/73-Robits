@@ -8,16 +8,23 @@ To clone your repository:
 1. Open Git Bash.
 2. Change the current working directory to the location where you want the cloned directory.
 3. Type `git clone https://github.com/coral-knight/73-Robits.git` 
+4. You will also need to download the following python libraries:
+    - OpenCV - `pip install opencv-python`
+    - Numpy - `pip install numpy`
+    - Stickytape - `pip install stickytape`
 
 ## Other documents
-You can also access the following documents:
+Our documentation for the 2024 competition:
 - [Team Description Paper](documents/TDP_2024.pdf)
 - [Engineering Journal](documents/engineeringjournal.pdf)
 - [Poster](documents/poster.pdf)
 
 ## Gengar
 Here is Gengar, our little pet that follows us through the entire journey
-![Gengar](gengar.png) ![Gengar with RoboCup 2023's trophy](gengarWithTrophy.png)
+
+<img src="gengar.png" alt="Gengar" style="height: 300px; width:300px;"/> 
+<img src="gengarWithTrophy.png" alt="Gengar with 2023's Trophy" style="height: 300px; width:300px;"/>
+
 ⠀⠀⠀⠀⠀⢸⠓⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⢸⠀⠀⠑⢤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠙⢤⡷⣤⣦⣀⠤⠖⠚⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
