@@ -28,7 +28,6 @@ class Navigate:
 
 
     def speed(self, left_speed, right_speed):
-        
         self.wheel_left.setVelocity(left_speed)
         self.wheel_right.setVelocity(right_speed)
         self.cur_velocity = [left_speed, right_speed]

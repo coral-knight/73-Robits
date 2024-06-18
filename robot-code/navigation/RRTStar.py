@@ -155,6 +155,7 @@ class RRTStar:
                         for v in self.graph[x, y]:
                             #if v != 0 and v[0] == point: return [1000, 1000], [[0, 0], 0]
                             if v != 0 and self.dist_coords(v[0], point) <= self.radius and not self.wall_between(v[0], point) and v[3] == True:
+                                if self.dist_coords(v[0], point) < 0.006: return [1000, 1000], [[0, 0], 0]
                                 neighbours.append([v, cont])
                                 if self.total_dist([[x, y], cont]) + self.dist_coords(v[0], point) < dist:
                                     parent = v[0]
@@ -195,8 +196,8 @@ class RRTStar:
     
 
     def connect(self, pos, to):
-        # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk_to" action)
-        if self.dist_coords(pos, to) < 0.0005: return
+        # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk" action)
+        if self.dist_coords(pos, to) < 0.005: return
 
         px, py = self.real_to_map(pos)
         tx, ty = self.real_to_map(to)
@@ -294,6 +295,30 @@ class RRTStar:
 
         return unexplored
     
+
+    def print(self):
+        initial_x, initial_y = self.real_to_map(self.initial_pos)
+
+        initial_node = self.graph[initial_x, initial_y][1]
+        print("initial", initial_node)
+
+        points = [[initial_node, [[initial_x, initial_y], 1]]]
+
+        print("[", end = " ")
+        while len(points) != 0:
+            node = points[0][0]
+            pos = points[0][1]
+            points.pop(0)
+
+            for c in node[2]:
+                child_pos = self.graph_child(pos, c)
+                child = self.graph[child_pos[0][0]][child_pos[0][1]][child_pos[1]]
+                if child[3] == False: continue
+                points.append([child, [child_pos[0], child_pos[1]]])
+
+                print("[", node[0], ",", child[0], "]", end = ", ")
+        print("]", end = " ")
+
 
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
 
