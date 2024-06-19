@@ -415,51 +415,110 @@ class Camera:
                             cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
 
 
-    def ground_colour(self, colour_hsv, colour_rgb):
-        if (abs(colour_rgb[0] - 31) <= 5 and abs(colour_rgb[1] - 31) <= 5 and abs(colour_rgb[2] - 31) <= 5) or (abs(colour_rgb[0] - 24) <= 5 and abs(colour_rgb[1] - 24) <= 5 and abs(colour_rgb[2] - 24) <= 5) or (abs(colour_rgb[0] - 11) <= 5 and abs(colour_rgb[1] - 11) <= 5 and abs(colour_rgb[2] - 11) <= 5):
-            return 'bh' # blackhole
-        elif abs(colour_hsv[0] - 0) <= 3 and abs(colour_hsv[1] - 0) <= 30: return '0' # normal ground
-        elif abs(colour_hsv[0] - 19) <= 3 and abs(colour_hsv[1] - 125) <= 30: return 'sw' # swamp
-        elif abs(colour_hsv[0] - 120) <= 3 and abs(colour_hsv[1] - 190) <= 30: return 'b' # blue (1-2)
-        elif abs(colour_hsv[0] - 133) <= 3 and abs(colour_hsv[1] - 170) <= 30: return 'p' # purple (2-3)
-        elif abs(colour_hsv[0] - 0) <= 3 and abs(colour_hsv[1] - 190) <= 30: return 'r' # red (3-4)
-        elif abs(colour_hsv[0] - 60) <= 3 and abs(colour_hsv[1] - 220) <= 30: return 'g' # green (1-4)
-        elif abs(colour_hsv[0] - 22) <= 3 and abs(colour_hsv[1] - 205) <= 30: return 'o' # orange (2-4)
-        elif abs(colour_hsv[0] - 30) <= 3 and abs(colour_hsv[1] - 205) <= 30: return 'y' # yellow (1-3)
-        else: return 'cp' # checkpoint  
+    def is_obstacle(self, bgr_img, hsv_img, x, y):
+        # Já possui parede no lugar
+
+        # Formato
+            # + Cone (base > corpo > topo) 
+            # + Esfera e Capsula (base < corpo > topo)
+            # + Retangulo e Cilindro (base == corpo == topo) 
+
+        print("verificando obstáculo")
+
+        [left_up, left_down, right_up, right_down, diff_value] = self.bfs_tile(bgr_img, hsv_img, x, y)
+
+        print("left up", left_up)
+        print("left down", left_down)
+        print("right up", right_up)
+        print("right down", right_down)
+        print("diff value", diff_value)
+
+        # Mudança de iluminação (V do HSV) grande
+        if diff_value > 3: return True
+
+        # Topo ultrapassa meio da tela
+        if left_up[1] < 17 or right_up[1] < 18: return True
+
+        # Vertical > horizontal
+
+        return False
 
 
-    def bfs_tile(self, bgr_img, hsv_img, xi, yi, colour):
-        x_left = 129
-        x_right = -1
-        y_up = 41
-        y_down = -1
+    def ground_colour(self, colour_hsv):
+        if abs(colour_hsv[0] - 240) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'b' # blue (1-2)
+        if abs(colour_hsv[0] - 60) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'y' # yellow (1-3)
+        if abs(colour_hsv[0] - 120) <= 10 and abs(colour_hsv[1] - 0.85) <= 0.1: return 'g' # green (1-4)
+        if abs(colour_hsv[0] - 266) <= 10 and abs(colour_hsv[1] - 0.70) <= 0.1: return 'p' # purple (2-3)
+        if abs(colour_hsv[0] - 44) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'o' # orange (2-4)
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'r' # red (3-4)
+
+        if abs(colour_hsv[0] - 225) <= 10 and colour_hsv[1] <= 0.50: return 'cp' # checkpoint  
+        if abs(colour_hsv[0] - 38) <= 10 and abs(colour_hsv[1] - 0.55) <= 0.1: return 'sw' # swamp
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] < 32: return 'bh' # black hole
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] > 188: return '0' # normal ground
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1: return 'ob'
+
+        return 'N'
+
+
+    def bfs_tile(self, bgr_img, hsv_img, xi, yi):
+        colour = self.ground_colour([hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)])
+
+        value, diff_value = [hsv_img.item(yi, xi, 2)], 1
+        left_up, left_down, right_up, right_down = [0,40], [0,-1], [0,40], [0,-1]
 
         queue = [[xi, yi]]
         while len(queue) != 0:
             [x, y] = queue[0]
             queue.pop(0)
 
-            if y <= bgr_img.shape[0]-1 and y >= 0 and x <= bgr_img.shape[1]-1 and x >= 0:
+            if y <= 39 and y >= 0 and x <= 255 and x >= 0:
                 colour_rgb = [bgr_img.item(y, x, 2), bgr_img.item(y, x, 1), bgr_img.item(y, x, 0)] 
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
-            
-                bgr_img[y, x] = [192, 192, 192] # paint as normal ground
-                hsv_img[y, x] = [0, 0, 0] # paint as normal ground
                 
-                if self.is_wall(colour_rgb) or self.ground_colour(colour_hsv, colour_rgb) != colour: continue
+                if self.is_wall(colour_rgb): continue
+                if (colour == 'ob' or colour == 'bh') and self.ground_colour(colour_hsv) != 'ob' and self.ground_colour(colour_hsv) != 'bh': continue
+                if colour != 'ob' and colour != 'bh' and self.ground_colour(colour_hsv) != colour: continue
+
+                if abs(value - colour_hsv[2]) > 10:
+                    print("troca de", value, "para", colour_hsv[2])
+                    value = colour_hsv[2]
+                    diff_value += 1
+
+                if x != 0:
+                    colour_left_rgb = [bgr_img.item(y, x-1, 2), bgr_img.item(y, x-1, 1), bgr_img.item(y, x-1, 0)] 
+                    colour_left_hsv = [hsv_img.item(y, x-1, 0), hsv_img.item(y, x-1, 1), hsv_img.item(y, x-1, 2)] 
+                if x != 255:
+                    colour_right_rgb = [bgr_img.item(y, x+1, 2), bgr_img.item(y, x+1, 1), bgr_img.item(y, x+1, 0)] 
+                    colour_right_hsv = [hsv_img.item(y, x+1, 0), hsv_img.item(y, x+1, 1), hsv_img.item(y, x+1, 2)] 
+                if y != 0:
+                    colour_up_rgb = [bgr_img.item(y-1, x, 2), bgr_img.item(y-1, x, 1), bgr_img.item(y-1, x, 0)] 
+                    colour_up_hsv = [hsv_img.item(y-1, x, 0), hsv_img.item(y-1, x, 1), hsv_img.item(y-1, x, 2)] 
+                if y != 39:
+                    colour_down_rgb = [bgr_img.item(y+1, x, 2), bgr_img.item(y+1, x, 1), bgr_img.item(y+1, x, 0)] 
+                    colour_down_hsv = [hsv_img.item(y+1, x, 0), hsv_img.item(y+1, x, 1), hsv_img.item(y+1, x, 2)] 
+
+                if (x == 0 or self.is_wall(colour_left_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_left_hsv) != 'ob' and self.ground_colour(colour_left_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_left_hsv) != colour)):
+                    if (y == 0 or self.is_wall(colour_up_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_up_hsv) != 'ob' and self.ground_colour(colour_up_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_up_hsv) != colour)):
+                        if y <= left_up[1]: left_up = [x, y]
+                    if (y == 39 or self.is_wall(colour_down_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_down_hsv) != 'ob' and self.ground_colour(colour_down_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_down_hsv) != colour)):
+                        if y >= left_down[1]: left_down = [x, y]
+
+                if (x == 255 or self.is_wall(colour_right_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_right_hsv) != 'ob' and self.ground_colour(colour_right_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_right_hsv) != colour)):
+                    if (y == 0 or self.is_wall(colour_up_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_up_hsv) != 'ob' and self.ground_colour(colour_up_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_up_hsv) != colour)):
+                        if y <= right_up[1]: right_up = [x, y]
+                    if (y == 39 or self.is_wall(colour_down_rgb) or ((colour == 'ob' or colour == 'bh') and self.ground_colour(colour_down_hsv) != 'ob' and self.ground_colour(colour_down_hsv) != 'bh') or (colour != 'ob' and colour != 'bh' and self.ground_colour(colour_down_hsv) != colour)):
+                        if y >= right_down[1]: right_down = [x, y]
+
+                bgr_img[y, x] = [192, 192, 192] # paint as normal ground
+                hsv_img[y, x] = [0, 0, 192] # paint as normal ground
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
                 queue.append([x, y+1])
                 queue.append([x, y-1])
-                    
-                x_left = min(x_left, x)
-                x_right = max(x_right, x)
-                y_up = min(y_up, y)
-                y_down = max(y_down, y)
 
-        return [bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]]
+        return [left_up, left_down, right_up, right_down, diff_value]
 
 
     def update_ground(self):
@@ -468,20 +527,36 @@ class Camera:
         hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
 
         for x in range(0, 256):
-            for y in range(39, -1, -1):
+            for y in range(39, 18, -1):
                 colour_rgb = [bgr_img.item(y, x, 2), bgr_img.item(y, x, 1), bgr_img.item(y, x, 0)] 
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)] 
-                g_colour = self.ground_colour(colour_hsv, colour_rgb)
+                g_colour = self.ground_colour(colour_hsv)
 
                 if self.is_wall(colour_rgb): break
                 if g_colour == '0': continue
 
-                [bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]] = self.bfs_tile(bgr_img, hsv_img, x, y, g_colour)
+                print("=== TEM COISA ====================", x, y, g_colour)
+                cv2.imwrite("ground_"+str(x)+"_"+str(y)+".png", bgr_img)
+
+                if self.is_obstacle(bgr_img, hsv_img, x, y):
+                    print("obstaculo em", x, y)
+                    continue
+                else:
+                    print(g_colour, "em", x, y)
+
+                    for i in range(y-2, y+3, 1):
+                        for j in range(x-2, x+3, 1):
+                            if i >= 0 and i < 40 and j >= 0 and j < 256: 
+                                bgr_img[i, j] = [192, 192, 192] # paint as normal ground
+                                hsv_img[i, j] = [0, 0, 192] # paint as normal ground
+
+                '''[bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]] = self.bfs_tile(bgr_img, hsv_img, x, y, g_colour)
                 cv2.imwrite("depoisbfs_bgr.png", bgr_img)
                 cv2.imwrite("depoisbfs_hsv.png", hsv_img)
 
                 if y_down == -1: continue
-                if g_colour != 'sw': continue
+                if g_colour != 'b': continue
+                if self.is_obstacle([x, y], [x_left, x_right], [y_up, y_down]): continue
                 
                 #vertical_fov = 0.566587633
                 vertical_fov = 2 * math.atan(math.tan(1.5 * 0.5) * (40 / 128))
@@ -515,7 +590,7 @@ class Camera:
                 print("distance", distance)
                 print("GROUND COORDS", [coord_X, coord_Y])
 
-                #self.map.add_ground(g_colour, [coord_X, coord_Y])
+                #self.map.add_ground(g_colour, [coord_X, coord_Y])'''
 
     
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''

@@ -23,10 +23,11 @@ class Sensors:
         if current_tick % 5 == 0:
             self.lidar.update()
             self.camera.seen()
-
-        if current_tick % 10 == 0:
-            self.camera.update_token()
             self.camera.update_ground()
+
+        #if current_tick % 10 == 0:
+            #self.camera.update_token()
+            #self.camera.update_ground()
 
         for i in range(-1, 2):
             for j in range(-1, 2):
