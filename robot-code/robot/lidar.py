@@ -41,7 +41,7 @@ class Lidar:
 
             if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.98:
                 if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
-                    self.map.add_point([coordX, coordY])
+                    self.map.add_obstacle([coordX, coordY])
                     #for i in range(20): 
                     #    self.map.seen([(i*self.gps.front[0]+(19-i)*coordX)/19, (i*self.gps.front[1]+(19-i)*coordY)/19])
             #else:

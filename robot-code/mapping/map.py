@@ -16,6 +16,12 @@ class Map:
             for y in range(self.size[1]):
                 self.map[x, y] = [0]
 
+        # ground tiles
+        self.extra_map = np.empty(self.size, dtype=object)
+        for x in range(self.size[0]):
+            for y in range(self.size[1]):
+                self.extra_map[x, y] = [0]
+
 
         # 0: unknown | 1: lidar | 2: camera | 3: passed by
         self.seen_map = np.zeros(self.size, dtype=int)
@@ -27,6 +33,8 @@ class Map:
             while dif_map_x:
                 self.map = np.insert(self.map, 0, None, axis=0)
                 for y in range(np.size(self.map, 1)): self.map[0, y] = [0]
+                self.extra_map = np.insert(self.extra_map, 0, None, axis=0)
+                for y in range(np.size(self.extra_map, 1)): self.extra_map[0, y] = [0]
                 self.seen_map = np.insert(self.seen_map, 0, 0, axis=0)
                 self.range_x[0] = self.range_x[0] - self.resolution
                 dif_map_x = dif_map_x - 1
@@ -36,6 +44,8 @@ class Map:
             while dif_map_x:
                 self.map = np.insert(self.map, np.size(self.map, 0), None, axis=0)
                 for y in range(np.size(self.map, 1)): self.map[np.size(self.map, 0)-1, y] = [0]
+                self.extra_map = np.insert(self.extra_map, np.size(self.extra_map, 0), None, axis=0)
+                for y in range(np.size(self.extra_map, 1)): self.extra_map[np.size(self.extra_map, 0)-1, y] = [0]
                 self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 0), 0, axis=0)
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
@@ -45,6 +55,8 @@ class Map:
             while dif_map_y:
                 self.map = np.insert(self.map, 0, None, axis=1)
                 for x in range(np.size(self.map, 0)): self.map[x, 0] = [0]
+                self.extra_map = np.insert(self.extra_map, 0, None, axis=1)
+                for x in range(np.size(self.extra_map, 0)): self.extra_map[x, 0] = [0]
                 self.seen_map = np.insert(self.seen_map, 0, 0, axis=1)
                 self.range_y[0] = self.range_y[0] - self.resolution
                 dif_map_y = dif_map_y - 1
@@ -54,6 +66,8 @@ class Map:
             while dif_map_y:
                 self.map = np.insert(self.map, np.size(self.map, 1), None, axis=1)
                 for x in range(np.size(self.map, 0)): self.map[x, np.size(self.map, 1)-1] = [0]
+                self.extra_map = np.insert(self.extra_map, np.size(self.extra_map, 1), None, axis=1)
+                for x in range(np.size(self.extra_map, 0)): self.extra_map[x, np.size(self.extra_map, 1)-1] = [0]
                 self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 1), 0, axis=1)
                 self.range_y[1] = self.range_y[1] + self.resolution
                 dif_map_y = dif_map_y - 1
@@ -73,7 +87,9 @@ class Map:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
-    def add_point(self, point):
+    def add_obstacle(self, point):
+        if point == [1000, 1000]: return
+
         self.expand(point)
 
         mapx, mapy = self.real_to_map(point)
@@ -85,6 +101,21 @@ class Map:
 
         return
     
+
+    def add_extra(self, point, type):
+        if point == [1000, 1000]: return
+
+        self.expand(point)
+
+        mapx, mapy = self.real_to_map(point)
+
+        for v in self.extra_map[mapx, mapy]:
+            if v != 0 and type == v[1] and self.dist_coords(point, v[0]) < 0.02:
+                return
+        self.extra_map[mapx, mapy].append([point, type])
+
+        return
+
 
     def seen(self, point):
         mapx, mapy = self.real_to_map(point)
