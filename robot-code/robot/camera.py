@@ -59,7 +59,9 @@ class Camera:
         img[0:, 0:128] = img_l[0:, 0:]
         img[0:, 128:256] = img_r[0:, 0:]
 
-        return img
+        hsv_img = cv2.cvtColor(np.float32(img), cv2.COLOR_BGR2HSV)
+
+        return img, hsv_img
     
 
     def identify_colour(self, colour_hsv):
@@ -80,10 +82,9 @@ class Camera:
         return 'N'
     
 
-    def is_wall(self, colour_rgb):
-        colour_hsv = cv2.cvtColor(np.float32([[colour_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
-        print("is wall hsv", colour_hsv)
-        if self.identify_colour(colour_hsv) == 'wa': return True
+    def is_wall(self, colour_hsv):
+        #colour_hsv = cv2.cvtColor(np.float32([[colour_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
+        if abs(colour_hsv[0] - 189) <= 10 and abs(colour_hsv[1] - 0.50) <= 0.1: return True
         return False
 
 
@@ -91,6 +92,7 @@ class Camera:
         closest = [-1, 1000]
         for i in range(len(self.sign_list)):
             sign = self.sign_list[i]
+            print("sign list", sign)
             if self.dist_coords(coords, sign[1]) < closest[1]:
                 closest = [i, self.dist_coords(coords, sign[1])]
 
@@ -107,7 +109,7 @@ class Camera:
 
         print("=======\nCollect")
 
-        img = self.joint_image()
+        img, hsv_img = self.joint_image()
         
         if self.c_initial_tick:
             # c_dir = 1 if turning right and -1 if turning left
@@ -122,7 +124,7 @@ class Camera:
             print("rodou tudo")
             return False
         
-        if not self.c_found and self.is_wall([img.item(16, 128, 2), img.item(16, 128, 1), img.item(16, 128, 0)]):
+        if not self.c_found and self.is_wall([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]):
             navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
 
             self.c_total_gyro += min(abs(self.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.gyro.last-self.c_last_tick_gyro))
@@ -151,8 +153,8 @@ class Camera:
             if not self.c_centered:  
                 navigate.speed(self.c_dir*1, -self.c_dir*1)
                 left_count, right_count = 0, 0
-                while not self.is_wall([img.item(16, 128-left_count, 2), img.item(16, 128-left_count, 1), img.item(16, 128-left_count, 0)]): left_count += 1
-                while not self.is_wall([img.item(16, 128+right_count, 2), img.item(16, 128+right_count, 1), img.item(16, 128+right_count, 0)]): right_count += 1
+                while not self.is_wall([hsv_img.item(16, 128-left_count, 0), hsv_img.item(16, 128-left_count, 1), hsv_img.item(16, 128-left_count, 2)]): left_count += 1
+                while not self.is_wall([hsv_img.item(16, 128+right_count, 0), hsv_img.item(16, 128+right_count, 1), hsv_img.item(16, 128+right_count, 2)]): right_count += 1
                 print("centralizando", left_count, right_count)
 
                 if (self.c_dir == 1 and left_count > right_count) or (self.c_dir == -1 and left_count < right_count): 
@@ -170,6 +172,10 @@ class Camera:
             elif not self.c_identified:  
                 navigate.speed(0, 0)
                 #self.c_type = self.identify(img)
+                if self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
+                    self.c_identified = True
+                    self.close = True
+                    self.c_sent = 1
                 self.c_type = 'H'
                 self.c_identified = True
                 print("identificado", self.c_type)
@@ -200,7 +206,7 @@ class Camera:
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     emitter.send(message)
 
-                    self.map.add_token(self.c_type, sign_coords)
+                    self.map.add_extra(sign_coords, self.c_type)
 
                     self.collected(sign_coords)
                     self.c_collected.append(self.gyro.last)
@@ -250,102 +256,88 @@ class Camera:
             if ray == 512: ray = 0
 
 
-    def find(self, image): # find objects in camera
+    def find(self, image):
         img = image
 
-        topwall = np.zeros(256, dtype=int) # array of how many times see wall, wall, non-wall
-        deltas = [] # victim positions 
-        x_right = -1 # x at  extreme right
-        x_left = 257 # x at extreme left
-        #for all pixels in image: 
+        topwall = np.zeros(256, dtype=int)
+        deltas = []
+        x_right = -1 
+        x_left = 257
+
         for y in range(1,39): 
             for x in range(0, 256): 
-                colour_rgb1 = [img.item(y, x, 2), img.item(y, x, 1), img.item(y, x, 0)] 
-                colour_rgb2 = [img.item(y+1, x, 2), img.item(y+1, x, 1), img.item(y+1, x, 0)]
-                colour_rgb3 = [img.item(y-1, x, 2), img.item(y-1, x, 1), img.item(y-1, x, 0)]
+                colour_hsv1 = [img.item(y, x, 0), img.item(y, x, 1), img.item(y, x, 2)] 
+                colour_hsv2 = [img.item(y+1, x, 0), img.item(y+1, x, 1), img.item(y+1, x, 2)]
+                colour_hsv3 = [img.item(y-1, x, 0), img.item(y-1, x, 1), img.item(y-1, x, 2)]
 
-                if self.is_wall(colour_rgb1) and self.is_wall(colour_rgb2) and not self.is_wall(colour_rgb3): 
+                if self.is_wall(colour_hsv1) and self.is_wall(colour_hsv2) and not self.is_wall(colour_hsv3): 
                     if topwall[x] == 1: 
                         topwall[x] = y 
 
-                        up_camera = colour_rgb3
-                        right_camera = colour_rgb3
+                        up_camera = colour_hsv3
+                        right_camera = colour_hsv3
 
                         up_count = 0
                         right_count = 0
 
-                        # enquanto não for parede, up_camera
                         while((y-up_count) > 0 and not self.is_wall(up_camera)):
                             up_count = up_count + 1
-                            up_camera = [img.item(y-up_count, x, 2), img.item(y-up_count, x, 1), img.item(y-up_count, x, 0)]
-                            #print("going up", (y-up_count), x, up_camera)
+                            up_camera = [img.item(y-up_count, x, 0), img.item(y-up_count, x, 1), img.item(y-up_count, x, 2)]
 
                         up_count = int((up_count+1)/2)
 
-                        # enquanto não for parede, right_camera
                         while((x+right_count) < 255 and not self.is_wall(right_camera)):
                             right_count = right_count + 1
-                            right_camera = [img.item(y-up_count, x+right_count, 2), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 0)]
-                            #print("going right", (y-up_count), x+right_count, right_camera)
+                            right_camera = [img.item(y-up_count, x+right_count, 0), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 2)]
 
                         if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
                             x_left = x
                             x_right = x+right_count-1
-                            #print("vítima", x_left, x_right, y-up_count, len(deltas)) 
 
                             deltas.append([x_left, x_right])
 
                     else: 
-                        ceiling = [img.item(0, x, 2), img.item(0, x, 1), img.item(0, x, 0)] 
-                        if self.is_wall(ceiling):
+                        ceiling = [img.item(0, x, 0), img.item(0, x, 1), img.item(0, x, 2)] 
 
-                            # canto inferior esquerdo da vítima
-                            up_camera = colour_rgb3 
-                            right_camera = colour_rgb3  
+                        if self.is_wall(ceiling):
+                            up_camera = colour_hsv3 
+                            right_camera = colour_hsv3  
 
                             up_count = 0 
                             right_count = 0  
 
-                            # enquanto for parede, up_camera
                             while((y-up_count) > 0 and not self.is_wall(up_camera)): 
                                 up_count = up_count + 1 
-                                up_camera = [img.item(y-up_count, x, 2), img.item(y-up_count, x, 1), img.item(y-up_count, x, 0)] 
-                                #print("going up 2", (y-up_count), x, up_camera)
+                                up_camera = [img.item(y-up_count, x, 0), img.item(y-up_count, x, 1), img.item(y-up_count, x, 2)] 
 
                             up_count = int((up_count+1)/2) 
 
-                            # enquanto for parede, right_camera
                             while((x+right_count) < 255 and not self.is_wall(right_camera)):
-                                right_count = right_count + 1 # conta larura
-                                right_camera = [img.item(y-up_count, x+right_count, 2), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 0)] # leva pixel para a direita
-                                #print("going right 2", (y-up_count), x+right_count, right_camera)
-
+                                right_count = right_count + 1
+                                right_camera = [img.item(y-up_count, x+right_count, 0), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 2)] 
 
                             if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
                                 x_left = x 
                                 x_right = x+right_count-1 
-                                #print("vítima2", x_left, x_right, len(deltas)) 
                                 
                                 deltas.append([x_left, x_right])
 
-                        elif topwall[x] == 0: # como tem pixel de não-parede => topwall = 1 de céu
+                        elif topwall[x] == 0: 
                             topwall[x] = 1
+
         return deltas, topwall
 
 
     def update_token(self): 
-        #img = np.array(np.frombuffer(img_data, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
-        #("img" + "_" + type_camera + ".png", img)
-
         #print("process cameras =========")
 
-        img = self.joint_image()
-        deltas, topwall = self.find(img)
+        img, hsv_img = self.joint_image()
+        deltas, topwall = self.find(hsv_img)
 
         for d in deltas:
             [x_left, x_right] = d
             
-            if abs(topwall[x_right]-topwall[x_left]) < 5 and (topwall[x_right] > 1 or self.is_wall([img.item(0, x_right, 2), img.item(0, x_right, 1), img.item(0, x_right, 0)])):
+            if abs(topwall[x_right]-topwall[x_left]) < 5 and (topwall[x_right] > 1 or self.is_wall([hsv_img.item(0, x_right, 0), hsv_img.item(0, x_right, 1), hsv_img.item(0, x_right, 2)])):
                 #print("aqui", x_left, x_right)
                 #cv2.imwrite("possible_victim_" + str(tick_count) + ".png", img)
 
@@ -421,7 +413,7 @@ class Camera:
                             cont = cont + 1
 
                         if not vitima_igual and ((abs(ang_max-ang) > 0.2 and abs(ang-ang_min) > 0.2) or dist < 0.8):
-                            #print("adicionei 1", a, b)
+                            print("ADDED TOKEN", a, b)
                             self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]])
                             cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
 
@@ -460,12 +452,11 @@ class Camera:
 
                 top = min(top, y)
 
-                if x > 128 and y < 31 and y > 27: print(x, y, bottom_hsv)
                 if y < 39 and (abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188)):
                     ground.append([x, y])
 
                 queue.append([x+1, y])
-                queue.append([x-1, y])
+                #queue.append([x-1, y])
                 queue.append([x, y+1])
                 queue.append([x, y-1])
 
@@ -509,8 +500,8 @@ class Camera:
 
         [top, diff_value, ground, img] = self.bfs_tile(img, x, y)
 
-        print("top", top)
-        print("diff value", diff_value)
+        #print("top", top)
+        #print("diff value", diff_value)
 
         if top < 18: obstacle = True # Top beyond the middle of image
         if diff_value > 3: obstacle = True # Change on the brightness value of HSV
@@ -529,8 +520,7 @@ class Camera:
         
 
     def update_ground(self):
-        img = np.float32(self.joint_image())
-        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        img, hsv_img = self.joint_image()
 
         cv2.imwrite("0_image.png", hsv_img)
 
@@ -541,10 +531,9 @@ class Camera:
 
                 if g_colour == 'wa': break
                 if g_colour == '0': continue
-                if g_colour != 'ob': continue
 
-                print("TEM COISA", x, y, "===================")
-                print("colour", g_colour)
+                #print("TEM COISA", x, y, "===================")
+                #print("colour", g_colour)
 
                 if self.is_obstacle(hsv_img, x, y): continue
 
@@ -554,7 +543,7 @@ class Camera:
                         if i >= 0 and i < 40 and j >= 0 and j < 256: 
                             hsv = [hsv_img.item(i, j, 0), hsv_img.item(i, j, 1), hsv_img.item(i, j, 2)] 
                             if self.identify_colour(hsv) != g_colour: 
-                                print("edge diferente", i, j)
+                                #print("edge diferente", i, j)
                                 edge = True
                 if edge: continue
                 
