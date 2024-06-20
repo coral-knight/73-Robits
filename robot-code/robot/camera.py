@@ -464,7 +464,7 @@ class Camera:
     def bfs_tile(self, bgr_img, hsv_img, xi, yi):
         colour = self.ground_colour([hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)])
 
-        value, diff_value = [hsv_img.item(yi, xi, 2)], 1
+        values, diff_value = [hsv_img.item(yi, xi, 2)], 1
         left_up, left_down, right_up, right_down = [0,40], [0,-1], [0,40], [0,-1]
 
         queue = [[xi, yi]]
@@ -480,9 +480,9 @@ class Camera:
                 if (colour == 'ob' or colour == 'bh') and self.ground_colour(colour_hsv) != 'ob' and self.ground_colour(colour_hsv) != 'bh': continue
                 if colour != 'ob' and colour != 'bh' and self.ground_colour(colour_hsv) != colour: continue
 
-                if abs(value - colour_hsv[2]) > 10:
-                    print("troca de", value, "para", colour_hsv[2])
-                    value = colour_hsv[2]
+                if all(abs(colour_hsv[2] - v) > 10 for v in values):
+                    print("add value", colour_hsv[2])
+                    values.append(colour_hsv[2])
                     diff_value += 1
 
                 if x != 0:
@@ -521,6 +521,43 @@ class Camera:
         return [left_up, left_down, right_up, right_down, diff_value]
 
 
+    def bfs_tile_2(self, bgr_img, hsv_img, xi, yi):
+        colour = self.ground_colour([hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)])
+
+        x_left = 256
+        x_right = -1
+        y_up = 41
+        y_down = -1
+
+        queue = [[xi, yi]]
+        while len(queue) != 0:
+            [x, y] = queue[0]
+            queue.pop(0)
+
+            if y <= 39 and y >= 0 and x <= 255 and x >= 0:
+                colour_rgb = [bgr_img.item(y, x, 2), bgr_img.item(y, x, 1), bgr_img.item(y, x, 0)] 
+                colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
+                
+                if self.is_wall(colour_rgb): continue
+                if (colour == 'ob' or colour == 'bh') and self.ground_colour(colour_hsv) != 'ob' and self.ground_colour(colour_hsv) != 'bh': continue
+                if colour != 'ob' and colour != 'bh' and self.ground_colour(colour_hsv) != colour: continue
+
+                bgr_img[y, x] = [192, 192, 192] # paint as normal ground
+                hsv_img[y, x] = [0, 0, 192] # paint as normal ground
+
+                x_left = min(x_left, x)
+                x_right = max(x_right, x)
+                y_up = min(y_up, y)
+                y_down = max(y_down, y)
+
+                queue.append([x+1, y])
+                queue.append([x-1, y])
+                queue.append([x, y+1])
+                queue.append([x, y-1])
+
+        return [bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]]
+
+
     def update_ground(self):
         img = np.float32(self.joint_image())
         bgr_img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
@@ -535,62 +572,58 @@ class Camera:
                 if self.is_wall(colour_rgb): break
                 if g_colour == '0': continue
 
-                print("=== TEM COISA ====================", x, y, g_colour)
-                cv2.imwrite("ground_"+str(x)+"_"+str(y)+".png", bgr_img)
+                #cv2.imwrite("ground_"+str(x)+"_"+str(y)+".png", bgr_img)
 
                 if self.is_obstacle(bgr_img, hsv_img, x, y):
                     print("obstaculo em", x, y)
                     continue
                 else:
-                    print(g_colour, "em", x, y)
+                    edge = False
+                    for i in range(y-1, y+2, 1):
+                        for j in range(x-1, x+2, 1):
+                            rgb = [bgr_img.item(i, j, 2), bgr_img.item(i, j, 1), bgr_img.item(i, j, 0)] 
+                            hsv = [hsv_img.item(i, j, 0), hsv_img.item(i, j, 1), hsv_img.item(i, j, 2)] 
+                            if self.is_wall(rgb) or self.ground_colour(hsv) != g_colour: edge = True
+                    
+    
+                    # for i in range(y-2, y+3, 1):
+                    #     for j in range(x-2, x+3, 1):
+                    #         if i >= 0 and i < 40 and j >= 0 and j < 256: 
+                    #             bgr_img[i, j] = [192, 192, 192] # paint as normal ground
+                    #             hsv_img[i, j] = [0, 0, 192] # paint as normal ground
+                    
+                    if edge: continue
+                    
+                    horizontal_fov = 1.5
+                    vertical_fov = 0.566587633
 
-                    for i in range(y-2, y+3, 1):
-                        for j in range(x-2, x+3, 1):
-                            if i >= 0 and i < 40 and j >= 0 and j < 256: 
-                                bgr_img[i, j] = [192, 192, 192] # paint as normal ground
-                                hsv_img[i, j] = [0, 0, 192] # paint as normal ground
+                    angle_Y = math.atan((y-19.5) * math.tan(vertical_fov/2) / 19.5)
+                    d_min = 0.0303/math.tan(angle_Y)
 
-                '''[bgr_img, hsv_img, [x_left, x_right], [y_up, y_down]] = self.bfs_tile(bgr_img, hsv_img, x, y, g_colour)
-                cv2.imwrite("depoisbfs_bgr.png", bgr_img)
-                cv2.imwrite("depoisbfs_hsv.png", hsv_img)
+                    if x < 128: 
+                        angle_X = math.atan((-x+63.5) * math.tan(horizontal_fov/2) / 63.5)
+                        distance = d_min / math.cos(angle_X)
+                        angle_X += 0.75
 
-                if y_down == -1: continue
-                if g_colour != 'b': continue
-                if self.is_obstacle([x, y], [x_left, x_right], [y_up, y_down]): continue
-                
-                #vertical_fov = 0.566587633
-                vertical_fov = 2 * math.atan(math.tan(1.5 * 0.5) * (40 / 128))
-                angle_Y = math.atan((((y_up + y_down)/2)-19.5) * math.tan(vertical_fov/2) / 19.5)
+                    if x >= 128:
+                        angle_X = math.atan((-(x-128)+63.5) * math.tan(horizontal_fov/2) / 63.5)
+                        distance = d_min / math.cos(angle_X)
+                        angle_X -= 0.75
 
-                # altura correta: 0.0303
-                # cam_height = (0.0423*(1-((angle_Y-0.12)/(0.199-0.12))) + 0.0303*(((angle_Y-0.12)/(0.199-0.12))))/2 # FEIO
-                #print("robo height", self.gps.gps.getValues())
-                cam_height = 0.0303#+0.0120 # FEIO
-                #if angle_Y > 0.199: cam_height -= 0.0120 # FEIO
+                    coord_X = self.gps.last[0] + distance * math.cos(self.gyro.last + angle_X)
+                    coord_Y = self.gps.last[1] + distance * math.sin(self.gyro.last + angle_X)
 
-                cam_height = math.atan((((y_up + y_down)/2)-19.5) * math.tan(0.0303) / 19.5)
-                # Pegar cam_height 
 
-                distance = cam_height/math.tan(angle_Y)
-                if distance < 0.12 or distance > 0.3: continue # FEIO
+                    # print("left, right", x_left, x_right)
+                    # print("up, down", y_up, y_down)
+                    print("x e y", x, y)
+                    print("AngleY", angle_Y)
+                    print("AngleX", angle_X)
+                    print("d min", d_min)
+                    print("distance", distance)
+                    print("GROUND COORDS", [coord_X, coord_Y])
 
-                horizontal_fov = 1.5
-                if ((x_left+x_right)/2) <= 128: 
-                    angle_X = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(horizontal_fov/2) / 63.5) + 0.75
-                if ((x_left+x_right)/2) > 128:
-                    angle_X = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(horizontal_fov/2) / 63.5) - 0.75
-
-                coord_X = self.gps.last[0] + distance * math.cos(self.gyro.last + angle_X)
-                coord_Y = self.gps.last[1] + distance * math.sin(self.gyro.last + angle_X)
-
-                print("groung colour", g_colour)
-                print("AngleY", angle_Y)
-                print("Cam Height", cam_height)
-                print("AngleX", angle_X)
-                print("distance", distance)
-                print("GROUND COORDS", [coord_X, coord_Y])
-
-                #self.map.add_ground(g_colour, [coord_X, coord_Y])'''
+                    #self.map.add_ground(g_colour, [coord_X, coord_Y])
 
     
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
