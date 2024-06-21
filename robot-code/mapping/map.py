@@ -320,6 +320,43 @@ class Map:
         return 
     
 
+    def to_detailed_png(self):
+        size = [int((0.01+self.range_x[1]-self.range_x[0])/0.01), int((0.01+self.range_y[1]-self.range_y[0])/0.01), 3]
+        tile_map = np.zeros(size)
+
+        for y in range(np.size(self.map, 1)):
+            for x in range(np.size(self.map, 0)):
+                for i in range(1, len(self.map[x, y])):
+                    [a, b] = self.map[x, y][i]
+                    tile_map[int((a-self.range_x[0])/0.01), int((b-self.range_y[0])/0.01)] = [255, 255, 255]
+
+        for y in range(np.size(self.extra_map, 1)):
+            for x in range(np.size(self.extra_map, 0)):
+                for i in range(1, len(self.extra_map[x, y])):
+                    [[a, b], c] = self.extra_map[x, y][i]
+
+                    if c == 'b': rgb = [0, 0, 255]
+                    if c == 'y': rgb = [255, 255, 0]
+                    if c == 'g': rgb = [0, 255, 0]
+                    if c == 'p': rgb = [255, 0, 255]
+                    if c == 'o': rgb = [255, 100, 0]
+                    if c == 'r': rgb = [255, 0, 0]
+                    if c == 'cp': rgb = [0, 120, 120]
+                    if c == 'sw': rgb = [140, 70, 20]
+                    if c == 'bh': rgb = [40, 40, 40]
+                    if c == 'ob': rgb = [180, 140, 180]
+
+                    bgr = [rgb[2], rgb[1], rgb[0]]
+                    tile_map[int((a-self.range_x[0])/0.01), int((b-self.range_y[0])/0.01)] = bgr
+
+        tile_map = np.rot90(tile_map)
+        s = 'detailed.png'
+        #M = abs(tile_map)*255
+        cv2.imwrite(s, tile_map)
+
+        return
+    
+
     def to_png_seen(self):
         transpose = np.zeros([np.size(self.seen_map, 1), np.size(self.seen_map, 0)])
 
@@ -333,7 +370,7 @@ class Map:
         cv2.imwrite(s, M)
 
         return 
-    
+        
 
     def dist_coords(self, a, b):
         dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5

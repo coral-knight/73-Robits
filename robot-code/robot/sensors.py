@@ -33,6 +33,7 @@ class Sensors:
             for j in range(-1, 2):
                 self.map.explored([self.gps.last[0]+i*0.02, self.gps.last[1]+j*0.02])
 
+        if current_tick % 20 == 0: self.map.to_detailed_png()
         self.map.to_png_seen()
 
         return
