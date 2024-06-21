@@ -15,6 +15,7 @@ class Navigate:
         self.exploring = False
         self.collecting = False
         self.walk_collect = False
+        self.ending = False
         self.action_list = []
         self.last_walk = [[0,0], self.sensors.gps.last]
 
@@ -63,7 +64,7 @@ class Navigate:
                 self.last_walk[0] = self.last_walk[1]
                 self.last_walk[1] = point
                 self.action_list.pop(0)
-                if self.dist_coords(self.sensors.gps.last, [0, 0]) <= 0.005: return[["exit"]]
+                if self.ending and self.dist_coords(self.sensors.gps.last, [0, 0]) <= 0.005: return[["exit"]]
                 if arg == 0: return [["connect", self.last_walk[0]]] # new area
                 if arg == 1: return [["nothing"]] # backtracking
                 if arg == 2: return [["connect", self.last_walk[0]], ["collect"]] # collectable sign
@@ -140,6 +141,7 @@ class Navigate:
         print("solve para", unexplored)
         print("last", last)
         self.exploring = True
+        if unexplored[0] == [0, 0]: self.ending = True
 
         point = last[0]
         pos = last[1]
@@ -260,7 +262,7 @@ class Navigate:
     def wall_between(self, a, b):
         # Can the robot go safely from a to b?
 
-        d = int(self.dist_coords(a, b)/0.06)*3
+        d = int(self.dist_coords(a, b)/0.02)
         if d == 0: d = 1
 
         for i in range(d+1): 
@@ -271,7 +273,7 @@ class Navigate:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0368 and self.dist_coords(a, p) > 0.036:
+                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(a, p) > 0.036:
                                 print("parede", v, self.dist_coords(p, v))
                                 return True
                 

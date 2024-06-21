@@ -95,7 +95,7 @@ class Map:
         mapx, mapy = self.real_to_map(point)
 
         for v in self.map[mapx, mapy]:
-            if v != 0 and self.dist_coords(point, v) < 0.02:
+            if v != 0 and self.dist_coords(point, v) < 0.005:
                 return
         self.map[mapx, mapy].append(point)
 

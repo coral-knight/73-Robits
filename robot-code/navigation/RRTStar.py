@@ -385,7 +385,7 @@ class RRTStar:
     def wall_between(self, a, b):
         # Can the robot go safely from a to b?
 
-        d = int(self.dist_coords(a, b)/0.06)*3
+        d = int(self.dist_coords(a, b)/0.02)
         if d == 0: d = 1
         
         for i in range(d+1): 

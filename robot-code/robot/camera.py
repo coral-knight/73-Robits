@@ -437,21 +437,23 @@ class Camera:
         x_left_r, x_right_r = 256, -1 # right camera
         y_up_r, y_down_r = 40, -1
 
-        qtd = 0
+        area = 0
         vis = np.zeros([256,40])
         queue = [[xi, yi]]
-        while len(queue) != 0 and qtd < 30000:
-            qtd += 1
-
+        while len(queue) != 0 and area < 10000:
             [x, y] = queue[0]
             queue.pop(0)
 
             if y <= 39 and y >= 0 and x <= 255 and x >= 0:
                 if vis[x, y]: continue
                 vis[x, y] = 1
+                area += 1
 
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
+
                 if y < 39: bottom_hsv = [hsv_img.item(y+1, x, 0), hsv_img.item(y+1, x, 1), hsv_img.item(y+1, x, 2)]
+                if x < 255: right_hsv = [hsv_img.item(y, x+1, 0), hsv_img.item(y, x+1, 1), hsv_img.item(y, x+1, 2)]
+                if x > 0: left_hsv = [hsv_img.item(y, x-1, 0), hsv_img.item(y, x-1, 1), hsv_img.item(y, x-1, 2)]
                 
                 if self.is_blank_ground([img.item(y, x, 0), img.item(y, x, 1), img.item(y, x, 2)]): continue
                 if abs(initial_hsv[0] - colour_hsv[0]) > 10 or abs(initial_hsv[1] - colour_hsv[1]) > 0.1: continue
@@ -462,9 +464,19 @@ class Camera:
 
                 top = min(top, y)
 
+                bot, left, right = False, False, False
                 if y < 39 and not self.is_wall(bottom_hsv) and (abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188)):
-                    ground.append([x, y])
-
+                    bot = True
+                if x > 0 and not self.is_wall(left_hsv) and (abs(initial_hsv[0] - left_hsv[0]) > 10 or abs(initial_hsv[1] - left_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and left_hsv[2] > 188)):
+                    left = True
+                if x < 255 and not self.is_wall(right_hsv) and (abs(initial_hsv[0] - right_hsv[0]) > 10 or abs(initial_hsv[1] - right_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and right_hsv[2] > 188)):
+                    right = True
+                        
+                if bot and left and right: ground.append([x, y-2])
+                elif bot and left: ground.append([x+2, y-1])
+                elif bot and right: ground.append([x-2, y-1])
+                elif bot: ground.append([x, y-1])
+                        
                 if x < 128:
                     x_left_l = min(x, x_left_l)
                     x_right_l = max(x, x_right_l)
@@ -483,18 +495,21 @@ class Camera:
 
                 img[y, x] = [0, 0, 192] # paint as normal ground
 
-        if qtd == 30000: print("while quebrou")
+        if area == 10000: print("while quebrou")
 
         if x_right_l != -1: mid_x_l, mid_y_l = (x_left_l+x_right_l)/2, (y_up_l+y_down_l)/2
         else: mid_x_l, mid_y_l = 1000, 1000
         if x_right_r != -1: mid_x_r, mid_y_r = (x_left_r+x_right_r)/2, (y_up_r+y_down_r)/2
         else: mid_x_r, mid_y_r = 1000, 1000
 
+        if area < 150: mid_x_l, mid_y_l, mid_x_r, mid_y_r = 1000, 1000, 1000, 1000
+
         return [int(mid_x_l), int(mid_y_l), int(mid_x_r), int(mid_y_r), top, diff_value, ground, img]
 
 
     def pixel_position(self, x, y):
         if y <= 19: return [1000, 1000]
+        if x == 1000: return [1000, 1000]
 
         horizontal_fov = 1.5
         vertical_fov = 0.566587633
@@ -531,8 +546,8 @@ class Camera:
 
         if obstacle:
             ground.sort()
-            for i in range(min(7, len(ground))): ground.pop(0)
-            for i in range(min(7, len(ground))): ground.pop(len(ground)-1)
+            for i in range(min(5, len(ground))): ground.pop(0)
+            for i in range(min(5, len(ground))): ground.pop(len(ground)-1)
 
             for [i, j] in ground:
                 if not all(([a, b] == [i, j] or abs(b - j) > 3) for [a, b] in ground):
@@ -552,6 +567,7 @@ class Camera:
         print("Start ==========================")
 
         for x in range(0, 256):
+            if self.is_wall([hsv_img.item(0, x, 0), hsv_img.item(0, x, 1), hsv_img.item(0, x, 2)]): continue 
             for y in range(39, 18, -1):
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)] 
                 g_colour = self.identify_colour(colour_hsv)
@@ -561,6 +577,7 @@ class Camera:
 
                 print("TEM COISA", x, y, "----------------------------")
                 print("colour", g_colour)
+                cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
 
                 [mid_x_l, mid_y_l, mid_x_r, mid_y_r, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
@@ -568,13 +585,17 @@ class Camera:
                     print("OBSTACLE")
                     cv2.imwrite("obstacle_" + str(x) + "_" + str(y) + ".png", hsv_img) 
                     continue
-                
+
+                if g_colour == 'N': continue
+
                 [coord_X_l, coord_Y_l] = self.pixel_position(mid_x_l, mid_y_l)
                 [coord_X_r, coord_Y_r] = self.pixel_position(mid_x_r, mid_y_r)
                 print("coord left", [coord_X_l, coord_Y_l])
                 print("coord right", [coord_X_r, coord_Y_r])
                 self.map.add_extra([coord_X_l, coord_Y_l], g_colour)
                 self.map.add_extra([coord_X_r, coord_Y_r], g_colour)
+                if g_colour == 'bh': self.map.add_obstacle([coord_X_l, coord_Y_l])
+                if g_colour == 'bh': self.map.add_obstacle([coord_X_r, coord_Y_r])
 
         return
 
