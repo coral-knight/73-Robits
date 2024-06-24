@@ -127,9 +127,16 @@ class Navigation:
                         self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                         return [["delete", self.sensors.gps.last]]
                     else:
-                        coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last)
-                        coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last)
+                        if abs(self.sensors.gyro.last_side) > 0.01: 
+                            coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
+                            coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
+                            self.map.add_extra([coordX, coordY], 'bh')
+                        else: 
+                            coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last)
+                            coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last)
                         self.map.add_obstacle([coordX, coordY])
+
+                        print("adding obstacle", [coordX, coordY])
 
                         self.action_list = []
                         self.last_walk[0] = self.last_walk[1]
@@ -278,6 +285,16 @@ class Navigation:
             if abs(self.last_pos[1] - (-0.02175)) > 0.001:
                 print("BLACKHOLE")
 
+                ang_front, ang_side = self.last_pos[2], self.last_pos[3]
+
+                if abs(ang_front) > 0.01:
+                    self.last_pos[0][0] -= ang_front/abs(ang_front) * 0.02 * math.cos(self.sensors.gyro.last)
+                    self.last_pos[0][1] -= ang_front/abs(ang_front) * 0.02 * math.sin(self.sensors.gyro.last)
+
+                if abs(ang_side) > 0.01:
+                    self.last_pos[0][0] += 0.02 * math.cos(self.sensors.gyro.last + ang_side/abs(ang_side) * math.pi/2)
+                    self.last_pos[0][1] += 0.02 * math.sin(self.sensors.gyro.last + ang_side/abs(ang_side) * math.pi/2)
+                
                 a, b = int(self.last_pos[0][0] / 0.06), int(self.last_pos[0][1] / 0.06)
                 if a != 0: a = int((a+(a/abs(a)))/2)
                 if b != 0: b = int((b+(b/abs(b)))/2)
@@ -292,7 +309,7 @@ class Navigation:
                         self.map.add_extra(coord, 'bh')
             else: print("STUCK")
 
-        self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1]]
+        self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1], self.sensors.gyro.last_front, self.sensors.gyro.last_side]
 
         if lop: self.reset()
         return lop

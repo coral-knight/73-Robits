@@ -35,10 +35,7 @@ class Robot:
         '''
         self.calibration_timer += 1
 
-        if self.calibration_timer == 1: 
-            self.c_initial_pos = self.sensors.gps.last
-            self.c_total_gyro = 0
-            self.c_last_tick_gyro = 0
+        if self.calibration_timer == 1: self.c_initial_pos = self.sensors.gps.last
 
         if self.current_tick == 1: self.sensors.gps.calibrate()
         self.sensors.gps.update()
@@ -142,12 +139,12 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 200:
                 cont += 1
                 local_unexplored = local_rrt.explore(10)
                 global_unexplored = self.global_rrt.explore(1)
 
-            if cont == 1000: 
+            if cont == 200: 
                 print("n achou nada")
                 print("volta spawn")
                 self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
@@ -210,6 +207,8 @@ class Robot:
                 self.run_calibration()
             else:
                 self.run_simulation()
+                #self.navigation.speed(0, 0)
+                #self.sensors.update(self.current_tick)
         return
     
 

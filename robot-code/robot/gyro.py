@@ -14,8 +14,10 @@ class Gyro:
 
         # Variables
         self.last = 0 
+        self.last_front = 0
+        self.last_side = 0
 
-    def update(self):
+    def update(self, current_tick):
         ''' 
         Atualiza o Gyro normalizado
         '''
@@ -24,6 +26,19 @@ class Gyro:
             self.last -= 2*math.pi
         if self.last < -math.pi:
             self.last += 2*math.pi
+
+        self.last_front = self.last_front + self.gyro.getValues()[0]*self.time_step*0.001
+        if self.last_front > math.pi:
+            self.last_front -= 2*math.pi
+        if self.last_front < -math.pi:
+            self.last_front += 2*math.pi
+
+        self.last_side = self.last_side + self.gyro.getValues()[2]*self.time_step*0.001
+        if self.last_side > math.pi:
+            self.last_side -= 2*math.pi
+        if self.last_side < -math.pi:
+            self.last_side += 2*math.pi
+
         return
     
     def calibrate(self, last_gps):
@@ -31,4 +46,6 @@ class Gyro:
         Sets the initial Gyro values
         '''
         self.last = math.atan2(last_gps[1] , last_gps[0])
+        self.last_front = 0
+        self.last_side = 0
         return
