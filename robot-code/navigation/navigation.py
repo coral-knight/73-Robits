@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-class Navigate:
+class Navigation:
 
     def __init__(self, hardware, sensors, map):
         self.hardware = hardware
@@ -18,6 +18,9 @@ class Navigate:
         self.ending = False
         self.action_list = []
         self.last_walk = [[0,0], self.sensors.gps.last]
+
+        self.last_pos = [[0, 0], 0]
+        self.stop_counter = 0
 
         #Left wheel
         self.wheel_left = self.hardware.getDevice("wheel2 motor")
@@ -85,6 +88,7 @@ class Navigate:
             last_arg = self.action_list[len(self.action_list)-1][2]
 
             if name == "Walk To":
+                # Wall on the path
                 if arg == 0 and self.wall_between(self.sensors.gps.last, action):
                     print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
@@ -94,6 +98,14 @@ class Navigate:
                     print("atual e last:", self.last_walk[1], self.last_walk[0])
                     return [["delete", action], ["connect", self.last_walk[0]]]
                 
+                # Too much time at the same place
+                if self.dist_coords(self.last_pos[0], self.sensors.gps.last) > 0.02: self.stop_counter = 0
+                else: self.stop_counter += 1
+
+                if self.stop_counter*16 > 3500:
+                    # mark the front of the robot
+                
+                # New collect action added
                 if len(self.action_list) > 1 and last_arg == 2:
                     print("added collect action")
                     self.action_list = self.action_list[len(self.action_list)-1:]
@@ -223,6 +235,20 @@ class Navigate:
 
         return
     
+
+    def check_LOP(self):
+        if self.dist_coords(self.sensors.gps.last, self.last_pos[0]) > 0.003:
+            print("=== LOP LOP LOP LOP LOP ===")
+
+            if abs(self.last_pos[1] - (-0.02175)) > 0.001:
+                print("caiu buraco")
+
+                #self.map.add_obstacle()
+
+        self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1]]
+
+        return
+
 
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
     

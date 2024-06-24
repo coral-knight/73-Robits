@@ -17,13 +17,20 @@ class Gps:
         self.initial = [0, 0]
         self.last = [0, 0]
         self.front = [0, 0]
+        self.left = [0, 0]
+        self.right = [0, 0]
 
     def update(self):
         # Atualiza o GPS normalizado para o lado certo
         self.last = [self.gps.getValues()[0] - self.initial[0], -self.gps.getValues()[2] + self.initial[2]]
         self.front = [self.last[0] + 0.03284 * math.cos(self.gyro.last), self.last[1] + 0.03284 * math.sin(self.gyro.last)]
+        self.left = [self.last[0] + 0.03284 * math.cos(self.gyro.last+math.pi/2), self.last[1] + 0.03284 * math.sin(self.gyro.last+math.pi/2)]
+        self.right = [self.last[0] + 0.03284 * math.cos(self.gyro.last-math.pi/2), self.last[1] + 0.03284 * math.sin(self.gyro.last-math.pi/2)]
+
         return 
     
     def calibrate(self):
         # Get initial GPS
         self.initial = self.gps.getValues()
+
+        return

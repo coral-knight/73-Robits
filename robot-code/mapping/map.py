@@ -335,6 +335,7 @@ class Map:
                 for i in range(1, len(self.extra_map[x, y])):
                     [[a, b], c] = self.extra_map[x, y][i]
 
+                    rgb = [0, 0, 0]
                     if c == 'b': rgb = [0, 0, 255]
                     if c == 'y': rgb = [255, 255, 0]
                     if c == 'g': rgb = [0, 255, 0]

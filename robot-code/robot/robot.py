@@ -2,7 +2,7 @@ from controller import Robot as Hardware
 from robot.sensors import Sensors
 from mapping.map import Map
 from navigation.RRTStar import RRTStar
-from navigation.navigation import Navigate
+from navigation.navigation import Navigation
 import numpy as np
 import math
 import struct
@@ -18,18 +18,13 @@ class Robot:
         self.hardware = Hardware()
         self.map = Map()
         self.sensors = Sensors(self.hardware, self.time_step, self.map)
-        self.navigate = Navigate(self.hardware, self.sensors, self.map)
+        self.navigation = Navigation(self.hardware, self.sensors, self.map)
 
-        # Receiver
-        self.receiver = self.hardware.getDevice("receiver")
-        self.receiver.enable(self.time_step)
-
-        # Emmiter
-        self.emitter = self.hardware.getDevice("emitter")
-        
+        # VARIABLES
         self.current_tick = 0
         self.calibration_timer = 0
         self.calibrated = False
+        self.c_initial_pos = [0, 0]
         self.c_total_gyro = 0
         self.c_last_tick_gyro = 0
 
@@ -38,29 +33,30 @@ class Robot:
         '''
         Starts the simulation by calibrating the robot 
         '''
+        self.calibration_timer += 1
 
-        if self.current_tick == 1:
-            self.sensors.gps.calibrate()
-
+        if self.current_tick == 1: self.sensors.gps.calibrate()
         self.sensors.gps.update()
 
-        if self.current_tick < 5:
-            self.navigate.speed(2, 2)
-        elif self.current_tick == 5:
-            self.sensors.gyro.calibrate(self.sensors.gps.last)
+        if self.calibration_timer == 1: self.c_initial_pos = self.sensors.gps.last
+
+        if self.calibration_timer < 5:
+            self.navigation.speed(2, 2)
+        elif self.calibration_timer == 5:
+            self.sensors.gyro.calibrate([self.sensors.gps.last[0]-self.c_initial_pos[0], self.sensors.gps.last[1]-self.c_initial_pos[1]])
             self.c_last_tick_gyro = self.sensors.gyro.last
-        elif self.current_tick < 10:
-            self.navigate.speed(-2, -2)
+            print("CALIBRATED GYRO", self.sensors.gyro.last)
+        elif self.calibration_timer < 10:
+            self.navigation.speed(-2, -2)
         else:
             self.sensors.update(self.current_tick)
 
-            self.navigate.speed(2, -2)
+            self.navigation.speed(2, -2)
             self.c_total_gyro += min(abs(self.sensors.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.sensors.gyro.last-self.c_last_tick_gyro))
             self.c_last_tick_gyro = self.sensors.gyro.last
 
             if self.c_total_gyro > 2*math.pi:
                 self.calibrated = True
-                self.calibration_timer = self.current_tick
         return
 
 
@@ -70,9 +66,11 @@ class Robot:
         '''
 
         self.sensors.update(self.current_tick)
+        self.navigation.check_LOP()
 
         if self.current_tick == self.calibration_timer+1:
-            self.navigate.speed(0,0)
+            self.navigation.speed(0,0)
+            self.calibration_timer = 0
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
         
@@ -84,12 +82,12 @@ class Robot:
 
 
         # Collect
-        if self.navigate.collecting: 
-            self.navigate.collecting = self.sensors.camera.collect(self.navigate, self.emitter)
+        if self.navigation.collecting: 
+            self.navigation.collecting = self.sensors.camera.collect(self.navigation)
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if self.current_tick % 20 == 0 and not self.navigate.collecting and not self.navigate.walk_collect:
+        if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
@@ -118,14 +116,14 @@ class Robot:
                     #print("right angle")
                     if not self.wall_between(self.sensors.gps.last, [x, y]):
                         print("sem parede")
-                        self.navigate.exploring = True
-                        self.navigate.append_list([x, y], 2)
+                        self.navigation.exploring = True
+                        self.navigation.append_list([x, y], 2)
                         break
 
 
         # Find a new point on the RRTs to go 
-        if not self.navigate.collecting and not self.navigate.exploring:
-            self.navigate.speed(0, 0)
+        if not self.navigation.collecting and not self.navigation.exploring:
+            self.navigation.speed(0, 0)
             print("------------------------------------")
 
             #self.global_rrt.update(self.sensors.gps.last, 1)
@@ -138,32 +136,32 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 3000:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 1000:
                 cont += 1
                 local_unexplored = local_rrt.explore(10)
                 global_unexplored = self.global_rrt.explore(1)
 
-            if cont == 3000: 
+            if cont == 1000: 
                 print("n achou nada")
                 print("volta spawn")
-                self.navigate.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
+                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
                 print(local_unexplored[0])
 
-                self.navigate.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
+                self.navigation.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
 
             elif len(global_unexplored) > 0:
                 print("found GLOBAL unexplored")
                 print(global_unexplored[0])
 
-                self.navigate.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
+                self.navigation.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
         # Navigate
-        if self.navigate.exploring:
+        if self.navigation.exploring:
             #self.global_rrt.update(self.sensors.gps.last, 0)
-            action_list = self.navigate.navigate()
+            action_list = self.navigation.navigate()
             for action in action_list:
 
                 if action[0] == "delete":
@@ -176,7 +174,7 @@ class Robot:
 
                 if action[0] == "collect":
                     print("pedido de coleta")
-                    self.navigate.collecting = True
+                    self.navigation.collecting = True
                 
                 if action[0] == "exit":
                     definitive_map = np.array(self.map.print_tile_map())
@@ -187,11 +185,11 @@ class Robot:
                     flatMap = ','.join(definitive_map.flatten())
                     dub_bytes = flatMap.encode('utf-8')
                     final_bytes = d_bytes + dub_bytes
-                    self.emitter.send(final_bytes)
+                    self.sensors.emitter.send(final_bytes)
                     map_evaluate_request = struct.pack('c', b'M')
-                    self.emitter.send(map_evaluate_request)
+                    self.sensors.emitter.send(map_evaluate_request)
                     exit_mes = struct.pack('c', b'E')
-                    self.emitter.send(exit_mes)
+                    self.sensors.emitter.send(exit_mes)
         
         return
         
@@ -205,9 +203,10 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             else:
-                self.run_simulation()
-                #self.sensors.update(self.current_tick)
-                #self.navigate.speed(0,0)
+                #self.run_simulation()
+                self.sensors.update(self.current_tick)
+                self.navigation.speed(6,6)
+                self.navigation.check_LOP()
         return
     
 

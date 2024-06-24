@@ -6,9 +6,10 @@ import cv2
 
 class Camera:
 
-    def __init__(self, hardware, time_step, gps, gyro, lidar, map):
+    def __init__(self, hardware, time_step, emitter, gps, gyro, lidar, map):
         self.hardware = hardware
         self.time_step = time_step
+        self.emitter = emitter
         self.gps = gps
         self.gyro = gyro
         self.lidar = lidar
@@ -109,7 +110,7 @@ class Camera:
         return
 
 
-    def collect(self, navigate, emitter):
+    def collect(self, navigation):
         # Controller for all components and actions of the Collect function
 
         print("=======\nCollect")
@@ -130,7 +131,7 @@ class Camera:
             return False
         
         if not self.c_found and self.is_wall([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]):
-            navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
+            navigation.speed(self.c_dir*navigation.turn_velocity, -self.c_dir*navigation.turn_velocity)
 
             self.c_total_gyro += min(abs(self.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.gyro.last-self.c_last_tick_gyro))
             self.c_last_tick_gyro = self.gyro.last
@@ -156,7 +157,7 @@ class Camera:
 
             # Center the victim within cameras' image
             if not self.c_centered:  
-                navigate.speed(self.c_dir*1, -self.c_dir*1)
+                navigation.speed(self.c_dir*1, -self.c_dir*1)
                 left_count, right_count = 0, 0
                 while not self.is_wall([hsv_img.item(16, 128-left_count, 0), hsv_img.item(16, 128-left_count, 1), hsv_img.item(16, 128-left_count, 2)]): left_count += 1
                 while not self.is_wall([hsv_img.item(16, 128+right_count, 0), hsv_img.item(16, 128+right_count, 1), hsv_img.item(16, 128+right_count, 2)]): right_count += 1
@@ -168,14 +169,14 @@ class Camera:
             # Get far to identify
             #elif not self.c_far:  
             #    print("distancia")
-            #    navigate.speed(-navigate.turn_velocity, -navigate.turn_velocity)
+            #    navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
             #    if self.lidar.ray_dist(0) > 0.07:
             #        print("deu")
             #        self.c_far = True
 
             # Identify the sign's type
             elif not self.c_identified:  
-                navigate.speed(0, 0)
+                navigation.speed(0, 0)
                 #self.c_type = self.identify(img)
                 if self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
                     self.c_identified = True
@@ -188,14 +189,14 @@ class Camera:
             # Get closer to send the right sign
             elif not self.c_close:  
                 print("aproxima")
-                navigate.speed(navigate.turn_velocity, navigate.turn_velocity)
+                navigation.speed(navigation.turn_velocity, navigation.turn_velocity)
                 if self.lidar.ray_dist(0) < 0.05:
                     print("deu")
                     self.c_close = True
 
             # Send the sign with emitter
             elif self.c_sent <= 0: 
-                navigate.speed(0, 0)
+                navigation.speed(0, 0)
                 self.c_timer += 1
                 print(self.c_timer*self.time_step)
 
@@ -206,10 +207,8 @@ class Camera:
                     print("tempo de mandar")
                     print("coords", dist, sign_coords)
 
-                    a = self.gps.gps.getValues()
-
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
-                    emitter.send(message)
+                    self.emitter.send(message)
 
                     self.map.add_extra(sign_coords, self.c_type)
 
@@ -224,14 +223,14 @@ class Camera:
             # Get back to initial position
             elif not self.c_back:  
                 print("volta")
-                navigate.speed(-navigate.turn_velocity, -navigate.turn_velocity)
+                navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
                 if self.lidar.ray_dist(0) > 0.055:
                     self.c_back = True
                     print("deu")
                     
             else:
                 print("volta a rodar")
-                navigate.speed(self.c_dir*navigate.turn_velocity, -self.c_dir*navigate.turn_velocity)
+                navigation.speed(self.c_dir*navigation.turn_velocity, -self.c_dir*navigation.turn_velocity)
                 self.c_found = False
 
         return True
@@ -475,7 +474,7 @@ class Camera:
                 if bot and left and right: ground.append([x, y-2])
                 elif bot and left: ground.append([x+2, y-1])
                 elif bot and right: ground.append([x-2, y-1])
-                elif bot: ground.append([x, y-1])
+                elif bot: ground.append([x, y-2])
                         
                 if x < 128:
                     x_left_l = min(x, x_left_l)
@@ -544,7 +543,7 @@ class Camera:
         if top < 18: obstacle = True # Top beyond the middle of image
         if diff_value > 3 and colour != 'cp': obstacle = True # Change on the brightness value of HSV
 
-        if obstacle:
+        '''if obstacle:
             ground.sort()
             for i in range(min(5, len(ground))): ground.pop(0)
             for i in range(min(5, len(ground))): ground.pop(len(ground)-1)
@@ -554,7 +553,7 @@ class Camera:
                     [coord_X, coord_Y] = self.pixel_position(i, j-1)
                     self.map.add_obstacle([coord_X, coord_Y])
                     self.map.add_extra([coord_X, coord_Y], 'ob')
-                    print("added obstacle", [i, j], [coord_X, coord_Y])
+                    print("added obstacle", [i, j], [coord_X, coord_Y])'''
 
         return obstacle
         
