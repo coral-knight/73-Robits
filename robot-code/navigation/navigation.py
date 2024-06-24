@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import struct
 
 class Navigation:
 
@@ -20,7 +21,9 @@ class Navigation:
         self.last_walk = [[0,0], self.sensors.gps.last]
 
         self.last_pos = [[0, 0], 0]
-        self.stop_counter = 0
+        self.last_stuck_pos = [0,0]
+        self.stuck_counter = 0
+        self.stuck = 0
 
         #Left wheel
         self.wheel_left = self.hardware.getDevice("wheel2 motor")
@@ -29,6 +32,17 @@ class Navigation:
         #Right wheel
         self.wheel_right = self.hardware.getDevice("wheel1 motor")
         self.wheel_right.setPosition(float("inf"))
+
+
+    def reset(self):
+        self.exploring = False
+        self.collecting = False
+        self.walk_collect = False
+        self.action_list = []
+        self.last_walk = [[0,0], self.sensors.gps.last]
+
+        self.stuck_counter = 0
+        self.stuck = 0
 
 
     def speed(self, left_speed, right_speed):
@@ -64,6 +78,7 @@ class Navigation:
                 self.speed(self.velocity, self.velocity)
             else:
                 print("terminou andar, argument: ", arg)
+                self.stuck = 0
                 self.last_walk[0] = self.last_walk[1]
                 self.last_walk[1] = point
                 self.action_list.pop(0)
@@ -99,11 +114,27 @@ class Navigation:
                     return [["delete", action], ["connect", self.last_walk[0]]]
                 
                 # Too much time at the same place
-                if self.dist_coords(self.last_pos[0], self.sensors.gps.last) > 0.02: self.stop_counter = 0
-                else: self.stop_counter += 1
+                if self.dist_coords(self.last_stuck_pos, self.sensors.gps.last) > 0.02: 
+                    self.stuck_counter = 0
+                    self.last_stuck_pos = self.sensors.gps.last
+                else: self.stuck_counter += 1
 
-                if self.stop_counter*16 > 3500:
-                    # mark the front of the robot
+                if self.stuck_counter*16 > 3500:
+                    self.stuck += 1
+                    self.stuck_counter = 0
+                    print("NAVIGATION STUCK", self.stuck)
+                    if self.stuck > 1: 
+                        self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
+                        return [["delete", self.sensors.gps.last]]
+                    else:
+                        coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last)
+                        coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last)
+                        self.map.add_obstacle([coordX, coordY])
+
+                        self.action_list = []
+                        self.last_walk[0] = self.last_walk[1]
+                        self.last_walk[1] = self.sensors.gps.last
+                        return [["delete", action], ["connect", self.last_walk[0]]]
                 
                 # New collect action added
                 if len(self.action_list) > 1 and last_arg == 2:
@@ -237,17 +268,32 @@ class Navigation:
     
 
     def check_LOP(self):
+        lop = False
+        self.sensors.gps.update()
+
         if self.dist_coords(self.sensors.gps.last, self.last_pos[0]) > 0.003:
             print("=== LOP LOP LOP LOP LOP ===")
+            lop = True
 
             if abs(self.last_pos[1] - (-0.02175)) > 0.001:
-                print("caiu buraco")
+                print("BLACKHOLE")
 
-                #self.map.add_obstacle()
+                a, b = int(self.last_pos[0][0] / 0.06), int(self.last_pos[0][1] / 0.06)
+                if a != 0: a = int((a+(a/abs(a)))/2)
+                if b != 0: b = int((b+(b/abs(b)))/2)
+
+                minx, miny = a*0.12-0.06+0.01, b*0.12-0.06+0.01
+                maxx, maxy = a*0.12+0.06-0.01, b*0.12+0.06-0.01
+
+                for i in range(5):
+                    for j in range(5):
+                        self.map.add_obstacle( [((4-i)*minx+i*maxx)/4, ((4-j)*miny+j*maxy)/4] )
+            else: print("STUCK")
 
         self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1]]
 
-        return
+        if lop: self.reset()
+        return lop
 
 
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''

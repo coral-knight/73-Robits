@@ -320,7 +320,7 @@ class Map:
         return 
     
 
-    def to_detailed_png(self):
+    def to_detailed_png(self, current_tick):
         size = [int((0.01+self.range_x[1]-self.range_x[0])/0.01), int((0.01+self.range_y[1]-self.range_y[0])/0.01), 3]
         tile_map = np.zeros(size)
 
@@ -351,7 +351,7 @@ class Map:
                     tile_map[int((a-self.range_x[0])/0.01), int((b-self.range_y[0])/0.01)] = bgr
 
         tile_map = np.rot90(tile_map)
-        s = 'detailed.png'
+        s = "detailed_" + str(current_tick) + ".png"
         #M = abs(tile_map)*255
         cv2.imwrite(s, tile_map)
 

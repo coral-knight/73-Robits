@@ -35,10 +35,13 @@ class Robot:
         '''
         self.calibration_timer += 1
 
+        if self.calibration_timer == 1: 
+            self.c_initial_pos = self.sensors.gps.last
+            self.c_total_gyro = 0
+            self.c_last_tick_gyro = 0
+
         if self.current_tick == 1: self.sensors.gps.calibrate()
         self.sensors.gps.update()
-
-        if self.calibration_timer == 1: self.c_initial_pos = self.sensors.gps.last
 
         if self.calibration_timer < 5:
             self.navigation.speed(2, 2)
@@ -65,12 +68,15 @@ class Robot:
         Runs a tick of the robot simulation
         '''
 
+        if self.navigation.check_LOP():
+            self.calibration_timer = 0
+            self.calibrated = False
+            return
+        
         self.sensors.update(self.current_tick)
-        self.navigation.check_LOP()
 
         if self.current_tick == self.calibration_timer+1:
             self.navigation.speed(0,0)
-            self.calibration_timer = 0
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
         
@@ -203,10 +209,7 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             else:
-                #self.run_simulation()
-                self.sensors.update(self.current_tick)
-                self.navigation.speed(6,6)
-                self.navigation.check_LOP()
+                self.run_simulation()
         return
     
 
