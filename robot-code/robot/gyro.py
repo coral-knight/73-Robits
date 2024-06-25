@@ -17,27 +17,31 @@ class Gyro:
         self.last_front = 0
         self.last_side = 0
 
-    def update(self, current_tick):
+    def update(self):
         ''' 
         Atualiza o Gyro normalizado
         '''
-        self.last = self.last + self.gyro.getValues()[1]*self.time_step*0.001
+        self.last += self.gyro.getValues()[1]*self.time_step*0.001
         if self.last > math.pi:
             self.last -= 2*math.pi
         if self.last < -math.pi:
             self.last += 2*math.pi
 
-        self.last_front = self.last_front + self.gyro.getValues()[0]*self.time_step*0.001
+        self.last_front += self.gyro.getValues()[0]*self.time_step*0.001
         if self.last_front > math.pi:
             self.last_front -= 2*math.pi
         if self.last_front < -math.pi:
             self.last_front += 2*math.pi
+        if abs(self.last_front) > 0.01:
+            print("VIRADO FRONT", self.last_front)
 
-        self.last_side = self.last_side + self.gyro.getValues()[2]*self.time_step*0.001
+        self.last_side += self.gyro.getValues()[2]*self.time_step*0.001
         if self.last_side > math.pi:
             self.last_side -= 2*math.pi
         if self.last_side < -math.pi:
             self.last_side += 2*math.pi
+        if abs(self.last_side) > 0.01:
+            print("VIRADO SIDE", self.last_side)
 
         return
     

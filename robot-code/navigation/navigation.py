@@ -79,6 +79,7 @@ class Navigation:
             else:
                 print("terminou andar, argument: ", arg)
                 self.stuck = 0
+                self.sensors.gyro.last_front, self.sensors.gyro.last_side = 0, 0
                 self.last_walk[0] = self.last_walk[1]
                 self.last_walk[1] = point
                 self.action_list.pop(0)
@@ -127,7 +128,7 @@ class Navigation:
                         self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                         return [["delete", self.sensors.gps.last]]
                     else:
-                        if abs(self.sensors.gyro.last_side) > 0.01: 
+                        if abs(self.sensors.gyro.last_side) > 0.02: 
                             coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
                             coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
                             self.map.add_extra([coordX, coordY], 'bh')

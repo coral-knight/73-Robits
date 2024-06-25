@@ -53,13 +53,12 @@ class Lidar:
             dist_prox = self.dist_coords([coordX, coordY], [coordX_e, coordY_e])
             dist_ap = self.dist_coords([coordX_e, coordY_e], [coordX_d, coordY_d])
 
-            if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.98:
+            if max(abs(coordX), abs(coordY)) < 0.98:
                 if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
 
                     # Get the bottom of the cone if it appears on 3 layers of ray
-                    print(coordX_1, coordY_1)
-                    if (i > 350 or i < 162) and abs(coordZ_3 - (-0.066)) > 0.006:
-                        if self.dist_coords(self.gps.front, [coordX_1, coordY_1]) < 0.98 and self.dist_coords([coordX, coordY], [coordX_3, coordY_3]) < 0.01:
+                    if (i > 384 or i < 128) and abs(coordZ_3 - (-0.066)) > 0.006 and max(abs(coordX_3), abs(coordY_3)) < 0.98:
+                        if max(abs(coordX_1), abs(coordY_1)) < 0.98 and self.dist_coords([coordX, coordY], [coordX_3, coordY_3]) < 0.01:
                             ang_x_1, ang_y_1 = math.atan2(coordX_1-coordX, coordZ_1-coordZ), math.atan2(coordY_1-coordY, coordZ_1-coordZ)
                             ang_x_3, ang_y_3 = math.atan2(coordX-coordX_3, coordZ-coordZ_3), math.atan2(coordY-coordY_3, coordZ-coordZ_3)
 
@@ -68,7 +67,6 @@ class Lidar:
                                 coordY_3 += math.tan(-ang_y_3) * (coordZ_3 + 0.066)
                                 print("conical shaped", ang_x_3, ang_y_3)
 
-                        print(i, "new", coordX_3, coordY_3)
                         self.map.add_obstacle([coordX_3, coordY_3])
 
                     self.map.add_obstacle([coordX, coordY])

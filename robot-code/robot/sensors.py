@@ -28,10 +28,10 @@ class Sensors:
         self.receiver.update()
 
         self.gps.update()
-        self.gyro.update(current_tick)
+        self.gyro.update()
         #self.distance.update()
 
-        if current_tick % 5 == 0 and abs(max(abs(self.gyro.last_front), abs(self.gyro.last_side)) - 0) < 0.005:
+        if current_tick % 5 == 0 and max(abs(self.gyro.last_front), abs(self.gyro.last_side)) < 0.15:
             self.lidar.update()
             self.camera.seen()
 
