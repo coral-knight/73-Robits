@@ -31,11 +31,12 @@ class Sensors:
         self.gyro.update()
         #self.distance.update()
 
-        if current_tick % 5 == 0 and max(abs(self.gyro.last_front), abs(self.gyro.last_side)) < 0.15:
-            self.lidar.update()
-            self.camera.seen()
+        #if current_tick % 5 == 0 and max(abs(self.gyro.last_front), abs(self.gyro.last_side)) < 0.15:
+        #    self.lidar.update()
+        #    self.camera.seen()
 
-        #if current_tick % 20 == 0 and self.camera.c_found == False:
+        if current_tick % 20 == 0 and self.camera.c_found == False:
+            self.camera.identify_token(self.camera.joint_image())
             #self.camera.update_token()
             #self.camera.update_ground()
 

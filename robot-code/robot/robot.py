@@ -203,12 +203,14 @@ class Robot:
         '''
         while self.hardware.step(self.time_step) != -1:
             self.current_tick += 1
-            if not self.calibrated:
-                self.run_calibration()
-            else:
-                self.run_simulation()
-                #self.navigation.speed(0, 0)
-                #self.sensors.update(self.current_tick)
+            #if not self.calibrated:
+            #    self.run_calibration()
+            #else:
+                #self.run_simulation()
+            self.navigation.speed(0, 0)
+            #self.sensors.update(self.current_tick)
+            if self.current_tick % 200 and self.current_tick > 50:
+                print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
         return
     
 

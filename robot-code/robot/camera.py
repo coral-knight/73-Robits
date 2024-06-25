@@ -48,52 +48,6 @@ class Camera:
         self.c_back = False
 
 
-    def joint_image(self):
-        # Get cameras' images and join them into a single one
-
-        img_data_l = self.camera_left.getImage()
-        img_data_r = self.camera_right.getImage()
-        img_l = np.array(np.frombuffer(img_data_l, np.uint8).reshape((self.camera_left.getHeight(), self.camera_left.getWidth(), 4)))
-        img_r = np.array(np.frombuffer(img_data_r, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
-
-        img = np.zeros([40,256,4], dtype="int")
-        img[0:, 0:128] = img_l[0:, 0:]
-        img[0:, 128:256] = img_r[0:, 0:]
-
-        hsv_img = cv2.cvtColor(np.float32(img), cv2.COLOR_BGR2HSV)
-
-        return img, hsv_img
-    
-
-    def identify_colour(self, colour_hsv):
-        if abs(colour_hsv[0] - 240) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'b' # blue (1-2)
-        if abs(colour_hsv[0] - 60) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'y' # yellow (1-3)
-        if abs(colour_hsv[0] - 120) <= 10 and abs(colour_hsv[1] - 0.85) <= 0.1: return 'g' # green (1-4)
-        if abs(colour_hsv[0] - 266) <= 10 and abs(colour_hsv[1] - 0.70) <= 0.1: return 'p' # purple (2-3)
-        if abs(colour_hsv[0] - 44) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'o' # orange (2-4)
-        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'r' # red (3-4)
-
-        if abs(colour_hsv[0] - 225) <= 10 and colour_hsv[1] <= 0.50: return 'cp' # checkpoint  
-        if abs(colour_hsv[0] - 38) <= 10 and abs(colour_hsv[1] - 0.55) <= 0.1: return 'sw' # swamp
-        if abs(colour_hsv[0] - 189) <= 10 and abs(colour_hsv[1] - 0.50) <= 0.1: return 'wa' # wall
-        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] < 32: return 'bh' # black hole
-        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] > 188: return '0' # normal ground
-        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1: return 'ob'
-
-        return 'N'
-
-
-    def is_blank_ground(self, colour_hsv):
-        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] > 188: return True
-        return False
-
-
-    def is_wall(self, colour_hsv):
-        #colour_hsv = cv2.cvtColor(np.float32([[colour_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
-        if abs(colour_hsv[0] - 189) <= 10 and abs(colour_hsv[1] - 0.50) <= 0.1: return True
-        return False
-
-
     def collected(self, coords):
         closest = [-1, 1000]
         for i in range(len(self.sign_list)):
@@ -177,12 +131,11 @@ class Camera:
             # Identify the sign's type
             elif not self.c_identified:  
                 navigation.speed(0, 0)
-                #self.c_type = self.identify(img)
-                if self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
+                self.c_type = self.identify_token(img)
+                if self.c_type == 'N' or self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
                     self.c_identified = True
                     self.close = True
                     self.c_sent = 1
-                self.c_type = 'H'
                 self.c_identified = True
                 print("identificado", self.c_type)
 
@@ -235,6 +188,154 @@ class Camera:
 
         return True
     
+ 
+    def find_vertex(self, hsv_img):
+        mid = [128, 20] # [x, y]
+        visited = []
+        queue = []
+        visited.append(mid)
+        queue.append(mid)
+
+        vertices = []
+        while queue:
+            atual = queue.pop(0)
+            # print("Atual:", atual)
+            x_atual = atual[0]
+            y_atual = atual[1]
+
+            # Checa se e vertice
+            cont_adj = 0
+
+            if(y_atual < 39):
+                px = [hsv_img.item(y_atual+1, x_atual, 0), hsv_img.item(y_atual+1, x_atual, 1), hsv_img.item(y_atual+1, x_atual, 2)]
+                if(not self.is_wall(px)): cont_adj += 1
+            if(y_atual > 0):
+                px = [hsv_img.item(y_atual-1, x_atual, 0), hsv_img.item(y_atual-1, x_atual, 1), hsv_img.item(y_atual-1, x_atual, 2)]
+                if(not self.is_wall(px)): cont_adj += 1
+            if(x_atual < 255):
+                px = [hsv_img.item(y_atual, x_atual+1, 0), hsv_img.item(y_atual, x_atual+1, 1), hsv_img.item(y_atual, x_atual+1, 2)]
+                if(not self.is_wall(px)): cont_adj += 1
+            if(x_atual > 0):
+                px = [hsv_img.item(y_atual, x_atual-1, 0), hsv_img.item(y_atual, x_atual-1, 1), hsv_img.item(y_atual, x_atual-1, 2)]
+                if(not self.is_wall(px)): cont_adj += 1
+
+            if(cont_adj == 1 or cont_adj == 2):
+                angle_center = math.atan2(y_atual-mid[1], x_atual-mid[0])
+                vertices.append([angle_center, [x_atual, y_atual]])
+                
+            for y in range(-1, 2, 1):
+                for x in range(-1, 2, 1):
+                    x_next = x_atual+x
+                    y_next = y_atual+y
+                    if(x_next >= 0 and y_next >= 0 and x_next < 256 and y_next < 40):
+                        px = [hsv_img.item(y_next, x_next, 0), hsv_img.item(y_next, x_next, 1), hsv_img.item(y_next, x_next, 2)]
+                        if not self.is_wall(px) and [x_next, y_next] not in visited:
+                            visited.append([x_next, y_next])
+                            queue.append([x_next, y_next])
+
+        if(len(vertices) < 4): return [[0, 0], [0, 0], [0, 0], [0, 0]]
+        vertices.sort()
+        sorted_vertices = []
+        for i in vertices: sorted_vertices.append(i[1])
+
+        return self.visvalingam_whyatt(sorted_vertices)
+
+
+    def identify_letter(self, gray_img):
+        middle_black = False
+        for y in range(-10, 11, 1):
+            for x in range(-10, 11, 1):
+                if gray_img.item(125+y, 125+x) <= 1: middle_black = True
+
+        if not middle_black: return 'U'
+        else:
+            # Count white-black on the middle line
+            counter_white_black = 0
+            pre_black = False
+
+            for x in range(249):
+                black = False
+                for y in range(115, 136, 1): 
+                    if gray_img.item(y, x) <= 1: black = True
+                if black == True and pre_black == False: counter_white_black += 1
+                pre_black = black
+
+            if counter_white_black >= 3: return 'S'
+
+            # Count white-black on the middle column
+            counter_white_black = 0
+            pre_black = False
+
+            for y in range(249):
+                black = False
+                for x in range(115, 136, 1): 
+                    if gray_img.item(y, x) <= 1: black = True
+                if black == True and pre_black == False: counter_white_black += 1
+                pre_black = black
+
+            if counter_white_black >= 3: return 'S'
+                
+            return 'H'
+
+
+    def identify_token(self, joint):
+        [img, hsv_img] = joint
+
+        resolution = 250
+
+        # Warping
+        vertexes = self.find_vertex(hsv_img)
+        if vertexes[0] == vertexes[1] and vertexes[1] == vertexes[2] and vertexes[2] == vertexes[3]: return 'N'
+        print("vertices", vertexes)
+        pts1 = np.float32(vertexes)
+        pts2 = np.float32([[0, 0], [resolution, 0], [resolution, resolution], [0, resolution]])
+        M = cv2.getPerspectiveTransform(pts1, pts2)
+        warped = cv2.warpPerspective(np.float32(img), M, (resolution, resolution))        
+        warped_hsv = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
+
+        cv2.imwrite("warped.png", warped)
+
+        # Define the ranges of the colors
+        lower_red_1 = np.array([0, 0.5, 0])
+        upper_red_1 = np.array([30, 1.0, 360])
+        lower_red_2 = np.array([330, 0.5, 0])
+        upper_red_2 = np.array([360, 1.0, 360])
+
+        lower_yellow = np.array([10, 0.5, 0])
+        upper_yellow = np.array([80, 1.0, 360])
+        
+        # Mask 
+        mask_red = cv2.inRange(warped_hsv, lower_red_1, upper_red_1)
+        mask_red += cv2.inRange(warped_hsv, lower_red_2, upper_red_2)
+        mask_yellow = cv2.inRange(warped_hsv, lower_yellow, upper_yellow)
+
+        #count the number of pixels from each mask 
+        red = np.sum(mask_red == 255)
+        yellow = np.sum(mask_yellow == 255)
+
+        print("red", red)
+        print("yellow", yellow)
+
+        #verify the masks to check Flamables and Organics
+        if yellow > 100: return 'O'
+        elif red > 100: return 'F'
+        
+        warped_gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+        
+        # Binary value for corrosive
+        _, warped_binary = cv2.threshold(warped_gray, 200, 255, cv2.THRESH_BINARY)
+        percentage = np.sum(warped_binary == 0)/62500.0
+        print("corrosive per", percentage)
+        if(percentage > 0.70): return 'C'
+        
+        # Binary value for poison
+        _, warped_binary = cv2.threshold(warped_gray, 100, 255, cv2.THRESH_BINARY)
+        percentage = np.sum(warped_binary == 0)/62500.0
+        print("poison per", percentage)
+        if(percentage < 0.20): return 'P'
+        
+        return self.identify_letter(warped_binary)
+
 
     def seen(self):
         ray_left = round((math.pi-(0.75))*256/math.pi)
@@ -605,3 +706,79 @@ class Camera:
     def dist_coords(self, a, b):
         dist = ((a[0]-b[0])**2 + (a[1]-b[1])**2)**0.5
         return dist
+    
+    
+    def joint_image(self):
+        # Get cameras' images and join them into a single one
+
+        img_data_l = self.camera_left.getImage()
+        img_data_r = self.camera_right.getImage()
+        img_l = np.array(np.frombuffer(img_data_l, np.uint8).reshape((self.camera_left.getHeight(), self.camera_left.getWidth(), 4)))
+        img_r = np.array(np.frombuffer(img_data_r, np.uint8).reshape((self.camera_right.getHeight(), self.camera_right.getWidth(), 4)))
+
+        img = np.zeros([40,256,4], dtype="int")
+        img[0:, 0:128] = img_l[0:, 0:]
+        img[0:, 128:256] = img_r[0:, 0:]
+
+        hsv_img = cv2.cvtColor(np.float32(img), cv2.COLOR_BGR2HSV)
+
+        return img, hsv_img
+    
+
+    def identify_colour(self, colour_hsv):
+        if abs(colour_hsv[0] - 240) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'b' # blue (1-2)
+        if abs(colour_hsv[0] - 60) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'y' # yellow (1-3)
+        if abs(colour_hsv[0] - 120) <= 10 and abs(colour_hsv[1] - 0.85) <= 0.1: return 'g' # green (1-4)
+        if abs(colour_hsv[0] - 266) <= 10 and abs(colour_hsv[1] - 0.70) <= 0.1: return 'p' # purple (2-3)
+        if abs(colour_hsv[0] - 44) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'o' # orange (2-4)
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0.75) <= 0.1: return 'r' # red (3-4)
+
+        if abs(colour_hsv[0] - 225) <= 10 and colour_hsv[1] <= 0.50: return 'cp' # checkpoint  
+        if abs(colour_hsv[0] - 38) <= 10 and abs(colour_hsv[1] - 0.55) <= 0.1: return 'sw' # swamp
+        if abs(colour_hsv[0] - 189) <= 10 and abs(colour_hsv[1] - 0.50) <= 0.1: return 'wa' # wall
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] < 32: return 'bh' # black hole
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] > 188: return '0' # normal ground
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1: return 'ob'
+
+        return 'N'
+
+
+    def is_blank_ground(self, colour_hsv):
+        if abs(colour_hsv[0] - 0) <= 10 and abs(colour_hsv[1] - 0) <= 0.1 and colour_hsv[2] > 188: return True
+        return False
+
+
+    def is_wall(self, colour_hsv):
+        #colour_hsv = cv2.cvtColor(np.float32([[colour_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
+        if abs(colour_hsv[0] - 189) <= 10 and abs(colour_hsv[1] - 0.50) <= 0.1: return True
+        return False
+
+
+    def triangle_area(self, p1, p2, p3): 
+        # Triangle area using coordinates p1, p2 and p3 with matrix determinant
+        return abs((p1[0]*(p2[1] - p3[1]) + p2[0]*(p3[1] - p1[1]) + p3[0]*(p1[1] - p2[1])) / 2.0)
+
+
+    def visvalingam_whyatt(self, coords):
+        n = len(coords)
+        areas = [] # area[i][0] = Self area, area[i][1] = [x, y], vertice coordinate
+
+        for i in range(0, len(coords)):
+            area = self.triangle_area(coords[(i-1)%n], coords[i], coords[(i+1)%n])
+            areas.append([area, coords[i]])
+        
+        while len(areas) > 4:
+            n = len(areas)
+            # Get minimal area
+            minIndex = 0
+            for i in range(0, len(areas)):
+                if areas[i][0] < areas[minIndex][0]: minIndex = i
+            
+            # Update adjacents areas
+            areas[(minIndex-1)%n][0] = self.triangle_area(areas[(minIndex-2)%n][1], areas[(minIndex-1)%n][1], areas[(minIndex+1)%n][1])
+            areas[(minIndex+1)%n][0] = self.triangle_area(areas[(minIndex-1)%n][1], areas[(minIndex+1)%n][1], areas[(minIndex+2)%n][1])
+
+            del areas[minIndex%n]
+
+        print("areas", len(areas))
+        return [areas[0][1], areas[1][1], areas[2][1], areas[3][1]]
