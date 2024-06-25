@@ -31,7 +31,7 @@ class Sensors:
         self.gyro.update(current_tick)
         #self.distance.update()
 
-        if current_tick % 5 == 0 and abs(max(self.gyro.last_front, self.gyro.last_side) - 0) < 0.005:
+        if current_tick % 5 == 0 and abs(max(abs(self.gyro.last_front), abs(self.gyro.last_side)) - 0) < 0.005:
             self.lidar.update()
             self.camera.seen()
 
