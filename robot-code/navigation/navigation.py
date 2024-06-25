@@ -169,7 +169,7 @@ class Navigation:
     
 
     def path_smoothing(self):
-        p, v = 0, 0
+        '''p, v = 0, 0
         aux_list = [["Walk To", self.sensors.gps.last]]
 
         while v != len(self.action_list):
@@ -183,6 +183,22 @@ class Navigation:
                 p = v-1
 
         aux_list.append(self.action_list[v-1])
+        self.action_list = aux_list[1:]'''
+
+
+        p, v = 0, len(self.action_list)-1
+        aux_list = [["Walk To", self.sensors.gps.last]]
+
+        print("smoothing", v, "walks")
+
+        while p != v:
+            a, b = self.action_list[p][1], self.action_list[v][1]
+            if not self.wall_between(a, b):
+                print("can go from", p, "to", v)
+                aux_list.append(self.action_list[v])
+                p, v = v, len(self.action_list)-1
+            else: v -= 1
+
         self.action_list = aux_list[1:]
 
         return

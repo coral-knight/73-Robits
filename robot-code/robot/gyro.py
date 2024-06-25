@@ -32,7 +32,7 @@ class Gyro:
             self.last_front -= 2*math.pi
         if self.last_front < -math.pi:
             self.last_front += 2*math.pi
-        if abs(self.last_front) > 0.01:
+        if abs(self.last_front) > 0.03:
             print("VIRADO FRONT", self.last_front)
 
         self.last_side += self.gyro.getValues()[2]*self.time_step*0.001
@@ -40,7 +40,7 @@ class Gyro:
             self.last_side -= 2*math.pi
         if self.last_side < -math.pi:
             self.last_side += 2*math.pi
-        if abs(self.last_side) > 0.01:
+        if abs(self.last_side) > 0.03:
             print("VIRADO SIDE", self.last_side)
 
         return

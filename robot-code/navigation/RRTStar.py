@@ -23,7 +23,8 @@ class RRTStar:
         print("creating RRT", self.real_to_map(pos), pos)
         self.graph[self.real_to_map(pos)[0], self.real_to_map(pos)[1]].append([pos, [[0, 0], 1], [], True])
 
-        self.initial_pos = self.map_to_real(self.real_to_map(pos))
+        self.initial_pos = pos
+        self.initial_center_pos = self.map_to_real(self.real_to_map(pos))
         self.cur_tile = [self.real_to_map(pos), 1]
 
 
@@ -303,7 +304,7 @@ class RRTStar:
     
 
     def print(self):
-        initial_x, initial_y = self.real_to_map(self.initial_pos)
+        initial_x, initial_y = self.real_to_map(self.initial_center_pos)
 
         initial_node = self.graph[initial_x, initial_y][1]
         print("initial", initial_node)
@@ -396,7 +397,7 @@ class RRTStar:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0376:
+                            if v != 0 and (self.dist_coords(p, v) < 0.036 or (self.dist_coords(p, self.initial_pos) > 0.005 and self.dist_coords(p, v) < 0.0376)):
                                 return True
                 
         return False

@@ -64,7 +64,7 @@ class Camera:
         return
 
 
-    def collect(self, navigation):
+    def collect(self, navigation, current_tick):
         # Controller for all components and actions of the Collect function
 
         print("=======\nCollect")
@@ -73,7 +73,7 @@ class Camera:
         
         if self.c_initial_tick:
             # c_dir = 1 if turning right and -1 if turning left
-            self.c_dir = 1 if self.lidar.ray_dist(492) > self.lidar.ray_dist(20) else -1 
+            self.c_dir = 1 if self.lidar.ray_dist(492, current_tick) > self.lidar.ray_dist(20, current_tick) else -1 
             self.c_last_tick_gyro = self.gyro.last
             self.c_initial_tick = False
 
@@ -100,7 +100,7 @@ class Camera:
             self.c_timer = 0
             self.c_back = False
 
-        elif self.lidar.ray_dist(0) < 0.08:
+        elif self.lidar.ray_dist(0, current_tick) < 0.08:
             for c in self.c_collected:
                 print("diff", c, min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)))
                 if not self.c_found and min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)) < 0.1:
@@ -124,14 +124,14 @@ class Camera:
             #elif not self.c_far:  
             #    print("distancia")
             #    navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
-            #    if self.lidar.ray_dist(0) > 0.07:
+            #    if self.lidar.ray_dist(0, current_tick) > 0.07:
             #        print("deu")
             #        self.c_far = True
 
             # Identify the sign's type
             elif not self.c_identified:  
                 navigation.speed(0, 0)
-                self.c_type = self.identify_token(img)
+                self.c_type = self.identify_token(img, current_tick)
                 if self.c_type == 'N' or self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
                     self.c_identified = True
                     self.close = True
@@ -143,7 +143,7 @@ class Camera:
             elif not self.c_close:  
                 print("aproxima")
                 navigation.speed(navigation.turn_velocity, navigation.turn_velocity)
-                if self.lidar.ray_dist(0) < 0.05:
+                if self.lidar.ray_dist(0, current_tick) < 0.05:
                     print("deu")
                     self.c_close = True
 
@@ -154,7 +154,7 @@ class Camera:
                 print(self.c_timer*self.time_step)
 
                 if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
-                    dist = self.lidar.ray_dist(0)
+                    dist = self.lidar.ray_dist(0, current_tick)
                     sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last), self.gps.last[1] + dist * math.sin(self.gyro.last)]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("tempo de mandar")
@@ -177,7 +177,7 @@ class Camera:
             elif not self.c_back:  
                 print("volta")
                 navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
-                if self.lidar.ray_dist(0) > 0.055:
+                if self.lidar.ray_dist(0, current_tick) > 0.055:
                     self.c_back = True
                     print("deu")
                     
@@ -337,7 +337,7 @@ class Camera:
         return self.identify_letter(warped_binary)
 
 
-    def seen(self):
+    def seen(self, current_tick):
         ray_left = round((math.pi-(0.75))*256/math.pi)
         ray_left = (ray_left+255) % 512 + 5
 
@@ -346,15 +346,12 @@ class Camera:
 
         ray = ray_left
         while ray != ray_right:
-            point = self.lidar.point_cloud[ray]
-
-            coordX = self.gps.front[0] + math.cos(self.gyro.last) * (-point.x) - math.sin(self.gyro.last) * (-point.y)
-            coordY = self.gps.front[1] + math.sin(self.gyro.last) * (-point.x) + math.cos(self.gyro.last) * (-point.y)
+            [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
 
             if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.25:
                 for i in range(35): 
                     [x, y] = [(i*self.gps.front[0]+(34-i)*coordX)/34, (i*self.gps.front[1]+(34-i)*coordY)/34]
-                    if self.dist_coords(self.gps.front, [x, y]) > 0.037 and self.dist_coords([coordX, coordY], [x, y]) > 0.03:
+                    if self.dist_coords(self.gps.front, [x, y]) > 0.037 and self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.03:
                         self.map.seen([x, y])
 
             ray += 1
@@ -433,7 +430,7 @@ class Camera:
         return deltas, topwall
 
 
-    def update_token(self): 
+    def update_token(self, current_tick): 
         #print("process cameras =========")
 
         img, hsv_img = self.joint_image()
@@ -456,7 +453,7 @@ class Camera:
                 raio = round((math.pi-(img_angle))*256/math.pi)
                 raio = (raio+255) % 512
 
-                dist = self.lidar.ray_front_dist(raio)
+                dist = self.lidar.ray_front_dist(raio, current_tick)
                 #print("dist", dist)
                 #print("raio", raio)
                 #print("img angle", img_angle)
@@ -475,19 +472,19 @@ class Camera:
 
                     aux = 2*math.pi/512
 
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512) * (math.cos(self.gyro.last+img_angle+rd*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512) * (math.sin(self.gyro.last+img_angle+rd*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512) * (math.cos(self.gyro.last+img_angle-rd*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512) * (math.sin(self.gyro.last+img_angle-rd*aux))
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
 
                     ang = math.atan2(b - self.gps.last[1], a - self.gps.last[0]) 
                     ang_max = math.atan2(be-bd, ae-ad)
                     ang_min = math.atan2(bd-be, ad-ae)
                     
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-6+512)%512) * (math.cos(self.gyro.last+img_angle+6*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-6+512)%512) * (math.sin(self.gyro.last+img_angle+6*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+6)%512) * (math.cos(self.gyro.last+img_angle-6*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+6)%512) * (math.sin(self.gyro.last+img_angle-6*aux))
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-6+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+6*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-6+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+6*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+6)%512, current_tick) * (math.cos(self.gyro.last+img_angle-6*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+6)%512, current_tick) * (math.sin(self.gyro.last+img_angle-6*aux))
 
                     if (self.dist_coords([ae, be], [ad, bd]) < 0.05) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
                         # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]

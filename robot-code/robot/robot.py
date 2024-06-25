@@ -76,17 +76,11 @@ class Robot:
             self.navigation.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
             return
-        
-
-        # TEST
-        #if self.current_tick == 300:
-        #    print("adicionei a vítima")
-        #    self.sensors.camera.sign_list.append((10, [0.24, 0.06], [0.22, 0.06], [0.26, 0.06], [0, math.pi]))
 
 
         # Collect
         if self.navigation.collecting: 
-            self.navigation.collecting = self.sensors.camera.collect(self.navigation)
+            self.navigation.collecting = self.sensors.camera.collect(self.navigation, self.current_tick)
 
 
         # Check if there's signs that the robot can safely go walking a straight path
@@ -139,26 +133,25 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 200:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 500:
                 cont += 1
                 local_unexplored = local_rrt.explore(10)
                 global_unexplored = self.global_rrt.explore(1)
+                
 
-            if cont == 200: 
-                print("n achou nada")
-                print("volta spawn")
+            if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
+                print("n achou nada \n volta spawn")
                 self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
+                print("cont", cont)
                 print(local_unexplored[0])
-
                 self.navigation.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
 
             elif len(global_unexplored) > 0:
                 print("found GLOBAL unexplored")
                 print(global_unexplored[0])
-
                 self.navigation.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
         # Navigate
@@ -203,14 +196,14 @@ class Robot:
         '''
         while self.hardware.step(self.time_step) != -1:
             self.current_tick += 1
-            #if not self.calibrated:
-            #    self.run_calibration()
-            #else:
-                #self.run_simulation()
-            self.navigation.speed(0, 0)
-            #self.sensors.update(self.current_tick)
-            if self.current_tick % 200 and self.current_tick > 50:
-                print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
+            if not self.calibrated:
+                self.run_calibration()
+            else:
+                self.run_simulation()
+                #self.navigation.speed(0, 0)
+                #self.sensors.update(self.current_tick)
+            #if self.current_tick % 200 and self.current_tick > 50:
+                #print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
         return
     
 

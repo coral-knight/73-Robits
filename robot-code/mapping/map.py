@@ -117,6 +117,26 @@ class Map:
         return
 
 
+    def closest(self, point, max):
+        mapx, mapy = self.real_to_map(point)
+
+        closest = [1000,1000]
+        depth = 0
+
+        c = 0
+        while closest == [1000,1000] and c < max:
+            c += 1
+            for y in range(mapy-depth, mapy+depth+1):
+                for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
+                    if x >= 0 and x < np.size(self.map, 0) and y >= 0 and y < np.size(self.map, 1):
+                        for v in self.map[x, y]:
+                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v, point):
+                                closest = v
+            depth += 1
+
+        return closest
+
+
     def seen(self, point):
         mapx, mapy = self.real_to_map(point)
         if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
