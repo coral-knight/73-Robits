@@ -96,8 +96,20 @@ class Robot:
                 vi = [ad-ae, bd-be]
                 u = [vi[1], -1*vi[0]]
 
+                w = [vi[0] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2))]
+                uw = [w[1], -1*w[0]]
+
+                w2 = [-1*w[0], -1*w[1]]
+                uw2 = [-1*w2[1], w2[0]]
+
                 x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
                 y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
+
+                x_right = uw[0] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
+                y_right = uw[1] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
+
+                x_left = uw2[0] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
+                y_left = uw2[1] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
 
                 # Robot's angle to the sign and wall angulation
                 ang = math.atan2(b - self.sensors.gps.last[1], a - self.sensors.gps.last[0])

@@ -56,7 +56,7 @@ class Navigation:
         ang = math.atan2(point[1]-self.sensors.gps.last[1], point[0]-self.sensors.gps.last[0])
         delta_angle = ang-self.sensors.gyro.last
 
-        if abs(delta_angle) >= 0.05:
+        if abs(delta_angle) >= 0.04:
             while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
             while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
 
