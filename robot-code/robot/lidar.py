@@ -85,7 +85,7 @@ class Lidar:
     
 
     def ray_coords(self, ray, layer, current_tick):
-        if self.last_update[layer] < current_tick: self.point_cloud[layer] = np.array(self.getLayerPointCloud(layer)[0:512])
+        if self.last_update[layer] < current_tick: self.point_cloud[layer] = np.array(self.lidar.getLayerPointCloud(layer)[0:512])
         self.last_update[layer] = current_tick
 
         point = self.point_cloud[layer][ray]
@@ -97,14 +97,14 @@ class Lidar:
 
 
     def ray_dist(self, ray, current_tick):
-        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.getLayerPointCloud(2)[0:512])
+        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
         self.last_update[2] = current_tick
 
         return self.dist_coords(self.gps.last, self.ray_coords(ray, 2, current_tick))
     
 
     def ray_front_dist(self, ray, current_tick):
-        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.getLayerPointCloud(2)[0:512])
+        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
         self.last_update[2] = current_tick
 
         point = self.point_cloud[2][ray]

@@ -17,11 +17,11 @@ class Camera:
 
         # Hardware
         self.camera_left = self.hardware.getDevice("camera1")
-        self.camera_left.enable(self.time_step*5)
+        self.camera_left.enable(self.time_step*10)
         self.camera_left.setFov(1.5)
         
         self.camera_right = self.hardware.getDevice("camera2")
-        self.camera_right.enable(self.time_step*5)
+        self.camera_right.enable(self.time_step*10)
         self.camera_right.setFov(1.5)
 
         # Variables
@@ -30,38 +30,36 @@ class Camera:
         self.sign_list = []
         self.sign_colleted = []
 
+        self.c_id = 0
+        self.c_turn_velocity = 0
         self.c_initial_tick = True
-        self.c_dir = 0
-        self.c_last_tick_gyro = 0
-        self.c_total_gyro = 0
-        self.c_collected = []
 
         self.c_found = False
         self.c_centered = False
-        self.c_far = False
         self.c_identified = False
         self.c_type = 'N'
         self.c_close = False
         self.c_sent = 0
         self.c_timer = 0
-        self.c_collect_time = 4500
         self.c_back = False
 
 
-    def collected(self, coords):
+    def closest_token(self, coords):
         closest = [-1, 1000]
         for i in range(len(self.sign_list)):
             sign = self.sign_list[i]
             print("sign list", sign)
+
             if self.dist_coords(coords, sign[1]) < closest[1]:
-                closest = [i, self.dist_coords(coords, sign[1])]
+                ang = math.atan2(sign[1][1] - self.gps.last[1], sign[1][0] - self.gps.last[0])
+                [ang_min, ang_max] = sign[4]
 
-        print("closest", self.sign_list[closest[0]])
+                # Check if it's on the right side of the wall
+                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
+                    print("right side of wall")
+                    closest = [i, self.dist_coords(coords, sign[1])]
 
-        self.sign_colleted.append(self.sign_list[closest[0]])
-        self.sign_list.pop(closest[0])
-
-        return
+        return closest[0]
 
 
     def collect(self, navigation, current_tick):
@@ -72,119 +70,117 @@ class Camera:
         img, hsv_img = self.joint_image()
         
         if self.c_initial_tick:
-            # c_dir = 1 if turning right and -1 if turning left
-            self.c_dir = 1 if self.lidar.ray_dist(492, current_tick) > self.lidar.ray_dist(20, current_tick) else -1 
-            self.c_last_tick_gyro = self.gyro.last
+            self.c_id = self.closest_token(self.gps.last)
+            self.c_turn_velocity = navigation.turn_velocity-1
             self.c_initial_tick = False
-
-        if not self.c_found and self.c_total_gyro > 2*math.pi:
-            self.c_initial_tick = True
-            self.c_total_gyro = 0
-            self.c_collected = []
-            print("rodou tudo")
-            return False
-        
-        if not self.c_found and self.is_wall([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]):
-            navigation.speed(self.c_dir*navigation.turn_velocity, -self.c_dir*navigation.turn_velocity)
-
-            self.c_total_gyro += min(abs(self.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.gyro.last-self.c_last_tick_gyro))
-            self.c_last_tick_gyro = self.gyro.last
 
             self.c_found = False
             self.c_centered = False
-            self.c_far = False
             self.c_identified = False
             self.c_type = 'N'
             self.c_close = False
             self.c_sent = 0
             self.c_timer = 0
-            self.c_back = False
+            self.c_back = False 
 
-        elif self.lidar.ray_dist(0, current_tick) < 0.08:
-            for c in self.c_collected:
-                print("diff", c, min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)))
-                if not self.c_found and min(abs(self.gyro.last-c), 2*math.pi-abs(self.gyro.last-c)) < 0.1:
-                    return True
+        # Turn to the token
+        if not self.c_found:
+            ang = math.atan2(self.sign_list[self.c_id][1][1]-self.gps.last[1], self.sign_list[self.c_id][1][0]-self.gps.last[0])
+            delta_angle = ang-self.gyro.last
+            print("turning to token", delta_angle)
 
-            print("pixel diferente de parede")
-            self.c_found = True
+            if abs(delta_angle) >= 0.05:
+                while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
+                while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
 
-            # Center the victim within cameras' image
-            if not self.c_centered:  
-                navigation.speed(self.c_dir*1, -self.c_dir*1)
-                left_count, right_count = 0, 0
-                while not self.is_wall([hsv_img.item(16, 128-left_count, 0), hsv_img.item(16, 128-left_count, 1), hsv_img.item(16, 128-left_count, 2)]): left_count += 1
-                while not self.is_wall([hsv_img.item(16, 128+right_count, 0), hsv_img.item(16, 128+right_count, 1), hsv_img.item(16, 128+right_count, 2)]): right_count += 1
-                print("centralizando", left_count, right_count)
+                if delta_angle >= 0: navigation.speed(-self.c_turn_velocity, self.c_turn_velocity)
+                else: navigation.speed(self.c_turn_velocity, -self.c_turn_velocity)
 
-                if (self.c_dir == 1 and left_count > right_count) or (self.c_dir == -1 and left_count < right_count): 
-                    self.c_centered = True
-
-            # Get far to identify
-            #elif not self.c_far:  
-            #    print("distancia")
-            #    navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
-            #    if self.lidar.ray_dist(0, current_tick) > 0.07:
-            #        print("deu")
-            #        self.c_far = True
-
-            # Identify the sign's type
-            elif not self.c_identified:  
-                navigation.speed(0, 0)
-                self.c_type = self.identify_token(img, current_tick)
-                if self.c_type == 'N' or self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
-                    self.c_identified = True
-                    self.close = True
-                    self.c_sent = 1
-                self.c_identified = True
-                print("identificado", self.c_type)
-
-            # Get closer to send the right sign
-            elif not self.c_close:  
-                print("aproxima")
-                navigation.speed(navigation.turn_velocity, navigation.turn_velocity)
-                if self.lidar.ray_dist(0, current_tick) < 0.05:
-                    print("deu")
-                    self.c_close = True
-
-            # Send the sign with emitter
-            elif self.c_sent <= 0: 
-                navigation.speed(0, 0)
-                self.c_timer += 1
-                print(self.c_timer*self.time_step)
-
-                if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
-                    dist = self.lidar.ray_dist(0, current_tick)
-                    sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last), self.gps.last[1] + dist * math.sin(self.gyro.last)]
-                    sign_type = bytes(self.c_type, "utf-8")
-                    print("tempo de mandar")
-                    print("coords", dist, sign_coords)
-
-                    message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
-                    self.emitter.send(message)
-
-                    self.map.add_extra(sign_coords, self.c_type)
-
-                    self.collected(sign_coords)
-                    self.c_collected.append(self.gyro.last)
-                    self.c_sent = -1
+            else: 
+                if self.lidar.ray_dist(0, current_tick) > 0.08:
+                    self.c_initial_tick = True
+                    self.sign_colleted.append(self.sign_list[self.c_id])
+                    self.sign_list.pop(self.c_id)
+                    return False
                 
-                if self.c_timer*self.time_step > 1550: 
-                    print("terminou de mandar")
-                    self.c_sent = 1
+                self.c_found = True
 
-            # Get back to initial position
-            elif not self.c_back:  
-                print("volta")
-                navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
-                if self.lidar.ray_dist(0, current_tick) > 0.055:
-                    self.c_back = True
-                    print("deu")
-                    
-            else:
-                print("volta a rodar")
-                navigation.speed(self.c_dir*navigation.turn_velocity, -self.c_dir*navigation.turn_velocity)
-                self.c_found = False
+        # Center the token within cameras' image
+        elif not self.c_centered:  
+            left_count, right_count = 0, 0
+            while not self.is_wall([hsv_img.item(16, 128-left_count, 0), hsv_img.item(16, 128-left_count, 1), hsv_img.item(16, 128-left_count, 2)]): left_count += 1
+            while not self.is_wall([hsv_img.item(16, 128+right_count, 0), hsv_img.item(16, 128+right_count, 1), hsv_img.item(16, 128+right_count, 2)]): right_count += 1
+            print("centering", left_count, right_count)
+
+            if left_count > right_count: navigation.speed(-0.5, 0.5)
+            if right_count > left_count: navigation.speed(0.5, -0.5)
+
+            if abs(left_count - right_count) < 12: 
+                self.c_centered = True
+
+        # Identify the token's type
+        elif not self.c_identified:  
+            navigation.speed(0, 0)
+            #self.c_type = self.identify_token(img, current_tick)
+            self.c_type = 'H'
+
+            #if self.c_type == 'N' or self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
+            #    self.c_initial_tick = True
+            #    self.sign_colleted.append(self.sign_list[self.c_id])
+            #    self.sign_list.pop(self.c_id)
+            #    return False
+
+            self.c_identified = True
+            print("identified", self.c_type)
+
+        # Get closer to send the right token
+        elif not self.c_close:  
+            print("get closer")
+            navigation.speed(navigation.turn_velocity, navigation.turn_velocity)
+            if self.lidar.ray_dist(0, current_tick) < 0.05:
+                print("done")
+                self.c_close = True
+
+        # Send the token with emitter
+        elif self.c_sent <= 0: 
+            navigation.speed(0, 0)
+            self.c_timer += 1
+            print(self.c_timer*self.time_step)
+
+            if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
+                dist = self.lidar.ray_dist(0, current_tick)
+                sign_coords = [self.gps.last[0] + dist * math.cos(self.gyro.last), self.gps.last[1] + dist * math.sin(self.gyro.last)]
+                sign_type = bytes(self.c_type, "utf-8")
+                print("time to send")
+                print("coords", dist, sign_coords)
+
+                message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
+                self.emitter.send(message)
+
+                self.map.add_extra(sign_coords, self.c_type)
+
+                self.sign_colleted.append(self.sign_list[self.c_id])
+                self.sign_list.pop(self.c_id)
+                self.c_sent = -1
+            
+            if self.c_timer*self.time_step > 1550: 
+                print("finished sending")
+                self.c_sent = 1
+
+        # Get back to initial position
+        elif not self.c_back:  
+            print("get back")
+            navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
+            if self.lidar.ray_dist(0, current_tick) > 0.055:
+                self.c_back = True
+                print("done")
+                
+        else:
+            print("finished collecting")
+
+            self.c_initial_tick = True
+
+            return False
 
         return True
     
@@ -459,7 +455,7 @@ class Camera:
                 #print("img angle", img_angle)
                 #print("ang total", self.gyro.last+img_angle)
 
-                if dist < 0.18:
+                if dist < 0.25:
                     a = self.gps.front[0] + dist * (math.cos(self.gyro.last+img_angle))
                     b = self.gps.front[1] + dist * (math.sin(self.gyro.last+img_angle))
 

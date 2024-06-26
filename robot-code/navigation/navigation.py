@@ -57,23 +57,13 @@ class Navigation:
         delta_angle = ang-self.sensors.gyro.last
 
         if abs(delta_angle) >= 0.05:
-            #print("rotating", delta_angle)
-            #print(ang, self.sensors.last_gyro)
+            while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
+            while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
 
-            while delta_angle < -math.pi:
-                delta_angle = delta_angle + 2*math.pi
-            while delta_angle > math.pi:
-                delta_angle = delta_angle - 2*math.pi
-            if delta_angle >= 0:
-                self.speed(-self.turn_velocity, self.turn_velocity)
-            else:
-                self.speed(self.turn_velocity, -self.turn_velocity)
+            if delta_angle >= 0: self.speed(-self.turn_velocity, self.turn_velocity)
+            else: self.speed(self.turn_velocity, -self.turn_velocity)
         
         else:
-            #print("walking", point)
-            #print(self.sensors.gps.last)
-            #print(self.dist_coords(self.sensors.gps.last, point))
-
             if self.dist_coords(self.sensors.gps.last, point) > 0.003:
                 self.speed(self.velocity, self.velocity)
             else:
@@ -176,11 +166,12 @@ class Navigation:
 
         while p != v:
             a, b = self.action_list[p][1], self.action_list[v][1]
-            if not self.wall_between(a, b):
+            if not self.wall_between(a, b) or p == v-1:
                 print("can go from", p, "to", v)
                 aux_list.append(self.action_list[v])
                 p, v = v, len(self.action_list)-1
-            else: v -= 1
+            else: 
+                v -= 1
 
         self.action_list = aux_list[1:]
 
