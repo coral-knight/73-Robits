@@ -14,6 +14,7 @@ class Navigation:
         self.cur_velocity = [0,0]
 
         self.exploring = False
+        self.explored = False
         self.collecting = False
         self.walk_collect = False
         self.ending = False
@@ -135,7 +136,7 @@ class Navigation:
                         return [["delete", action], ["connect", self.last_walk[0]]]
                 
                 # New collect action added
-                if len(self.action_list) > 1 and last_arg == 2:
+                if not self.explored and len(self.action_list) > 1 and last_arg == 2:
                     print("added collect action")
                     self.action_list = self.action_list[len(self.action_list)-1:]
                     self.last_walk[0] = self.last_walk[1]
@@ -159,7 +160,8 @@ class Navigation:
     
 
     def path_smoothing(self, ini):
-        p, v = ini, len(self.action_list)-1
+        if ini > 0: p, v = ini-1, len(self.action_list)-1
+        else: p, v = 0, len(self.action_list)-1
         aux_list = [["Walk To", self.sensors.gps.last]]
 
         print("smoothing", v, "walks")

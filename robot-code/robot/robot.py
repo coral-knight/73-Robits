@@ -27,7 +27,6 @@ class Robot:
         self.c_initial_pos = [0, 0]
         self.c_total_gyro = 0
         self.c_last_tick_gyro = 0
-        self.explored = True
 
 
     def run_calibration(self):
@@ -88,7 +87,7 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if not self.exploring and self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
+        '''if not self.exploring and self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
@@ -127,15 +126,20 @@ class Robot:
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
                     #print("right angle")
+
+                    if not self.wall_between(self.sensors.gps.last, [x, y]): x, y = x, y
+                    elif not self.wall_between(self.sensors.gps.last, [x_right, y_right]): x, y = x_right, y_right
+                    elif not self.wall_between(self.sensors.gps.last, [x_left, y_left]): x, y = x_left, y_left
+
                     if not self.wall_between(self.sensors.gps.last, [x, y]):
                         print("sem parede")
                         self.navigation.exploring = True
                         self.navigation.append_list([x, y], 2)
-                        break
+                        break'''
 
 
         # Find a new point on the RRTs to go 
-        if not self.explored and not self.navigation.collecting and not self.navigation.exploring:
+        if not self.navigation.explored and not self.navigation.collecting and not self.navigation.exploring:
             self.navigation.speed(0, 0)
             print("------------------------------------")
 
@@ -149,15 +153,15 @@ class Robot:
             global_unexplored = []
 
             cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 500:
+            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 100:
                 cont += 1
-                local_unexplored = local_rrt.explore(10)
-                global_unexplored = self.global_rrt.explore(1)
+                _, local_unexplored = local_rrt.explore(10)
+                _, global_unexplored = self.global_rrt.explore(1)
                 
 
             if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
                 print("TERMINOU DE EXPLORAR")
-                self.explored = True
+                self.navigation.explored = True
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
@@ -172,7 +176,7 @@ class Robot:
 
 
         # Go to marked tokens, and then spawn
-        if self.explored and not self.navigation.exploring:
+        if self.navigation.explored and not self.navigation.collecting and not self.navigation.exploring:
             if len(self.sensors.camera.sign_list) > 0:
                 walk_token = []
                 for sign in self.sensors.camera.sign_list:
@@ -205,27 +209,31 @@ class Robot:
                     elif self.no_obstacle([x_left, y_left]): x, y = x_left, y_left
 
                     cont = 0
-                    closest = self.global_rrt.closest_point([x, y], 0, 1)
-                    while self.dist_coords([x, y], closest[0]) > 0.02 and cont < 1000:
+                    parent, _ = self.global_rrt.closest_point([x, y], 1)
+                    while parent == [1000,1000] and cont < 1000:
                         cont += 1
-                        self.global_rrt.explore(1)
-                        closest = self.global_rrt.closest_point([x, y], 0, 1)
+                        new, _ = self.global_rrt.explore(1)
+                        if len(new) > 0 and not self.global_rrt.wall_between([x, y], new[0]): parent = new[0]
 
+                    print("achou ponto", cont)
                     if cont == 1000: print("n pode ir para", [a, b])
-                    if cont < 1000: walk_token.append(closest)
+                    if cont < 1000: 
+                        self.global_rrt.connect([x, y], parent)
+                        walk_token.append([x, y])
 
                 current_pos = self.sensors.gps.last
                 for w in walk_token:
-                    print("from", current_pos, "to", w[0])
-                    self.navigation.solve([w[0], w[1]], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)])
-                    self.navigation.append_list(w[0], 2)
-                    current_pos = w[0]
+                    print("from", current_pos, "to", w)
+                    end = len(self.navigation.action_list)-1
+                    self.navigation.solve([w, self.global_rrt.real_to_pos(w)], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)])
+                    self.navigation.append_list(w, 2)
+                    current_pos = w
             else:
                 self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
 
 
         # Navigate
-        if self.navigation.exploring:
+        if not self.navigation.collecting and self.navigation.exploring:
             #self.global_rrt.update(self.sensors.gps.last, 0)
             action_list = self.navigation.navigate()
             for action in action_list:
@@ -294,9 +302,9 @@ class Robot:
                 if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                     for v in self.map.map[map_p[0]+x, map_p[1]+y]:
                         if v != 0 and self.dist_coords(pos, v) < 0.037:
-                            return True
+                            return False
                         
-        return False
+        return True
 
 
     def wall_between(self, a, b):

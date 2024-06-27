@@ -9,7 +9,7 @@ class RRTStar:
 
         self.size = [2, 2]
         self.resolution = 0.06
-        self.min_dist = 0.06
+        self.min_dist = 0.04
         self.radius = 0.12
         self.range_x = [pos[0]-self.resolution, pos[0]+self.resolution]
         self.range_y = [pos[1]-self.resolution, pos[1]+self.resolution]
@@ -111,7 +111,7 @@ class RRTStar:
         return [x, y]
     
 
-    def closest_point(self, point, op, max): 
+    def closest_point(self, point, op): 
         # Find the closest node to the point
 
         mapx, mapy = self.real_to_map(point)
@@ -119,20 +119,19 @@ class RRTStar:
         closest = [[1000,1000], [[1000, 1000], 1000]]
         depth = 0
 
-        c = 0
-        while closest[0] == [1000,1000] and c < max:
-            c+=1
+        while closest[0] == [1000,1000] and depth < 50:
             for y in range(mapy-depth, mapy+depth+1):
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
                         c = 0
                         for v in self.graph[x, y]:
-                            if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and (not op or not self.wall_between(v[0], point)) and v[3] == True:
-                                closest[0] = v[0]
-                                closest[1] = [[x, y], c]
+                            if v != 0 and (not op or not self.wall_between(v[0], point)) and v[3] == True:
+                                if self.dist_coords(closest[0], point) > self.dist_coords(v[0], point) :
+                                    closest[0] = v[0]
+                                    closest[1] = [[x, y], c]
                             c += 1
             depth += 1
-        if c == 50: print("WHILE CLOSEST")
+        if depth == 50: print("WHILE CLOSEST")
 
         return closest
 
@@ -145,7 +144,7 @@ class RRTStar:
         return point
 
 
-    def add_graph(self, point): # ===============
+    def add_graph(self, point):
         # Find points with a distance from 'point' less than 'radius', adding the new node and updating neighbours distances
 
         mapx, mapy = self.real_to_map(point)
@@ -196,7 +195,7 @@ class RRTStar:
     def update(self, pos, op):
         # Add current position to the Global RRT Graph 
 
-        closest = self.closest_point(pos, 1, 50)[0]
+        closest = self.closest_point(pos, 1)[0]
         if op == 1: print("update closest", closest, self.dist_coords(pos, closest))
         if op == 1 or self.dist_coords(pos, closest) > self.min_dist:
             parent, self.cur_tile = self.add_graph(pos)
@@ -284,6 +283,7 @@ class RRTStar:
     def explore(self, ticks):
         # Generate and find unexplored nodes to the navigation
 
+        new = []
         unexplored = []
         self.graph_expand([self.map.range_x[0], self.map.range_y[0]])
         self.graph_expand([self.map.range_x[1], self.map.range_y[1]])
@@ -292,7 +292,7 @@ class RRTStar:
             ticks -= 1
 
             point = self.random_point()
-            closest = self.closest_point(point, 0, 50)[0]
+            closest = self.closest_point(point, 0)[0]
             point = self.project_point(point, closest)
             parent, pos = self.add_graph(point)
             if parent == [1000, 1000]: continue
@@ -302,8 +302,10 @@ class RRTStar:
                 if self.map.seen_map[map_p[0], map_p[1]] == 0:
                     print("inexplorado", point, pos, parent)
                     unexplored.append(point) # [ponto (coordenada), posição]
+                
+            new.append(point)
 
-        return unexplored
+        return new, unexplored
     
 
     def print(self):

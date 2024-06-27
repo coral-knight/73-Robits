@@ -76,6 +76,7 @@ class Camera:
         
         if self.c_initial_tick:
             self.c_id = self.closest_token(self.gps.last)
+            if self.c_id == -1: self.c_end = True
             self.c_turn_velocity = navigation.turn_velocity-1.5
             self.c_initial_tick = False
             self.c_side = "none"
@@ -112,12 +113,15 @@ class Camera:
                     if abs(delta_angle_left) <= abs(delta_angle_right): self.c_side = "left"
                     if abs(delta_angle_left) >= abs(delta_angle_right): self.c_side = "right"
 
+                print(delta_angle_left, delta_angle_right)
+                print("decided", self.c_side)
+
                 if self.c_side == "left": delta_angle = delta_angle_left
                 if self.c_side == "right": delta_angle = delta_angle_right
 
                 print("turning to token", delta_angle)
 
-                if abs(delta_angle) > 0.02:
+                if abs(delta_angle) > 0.035:
                     if delta_angle >= 0: navigation.speed(-self.c_turn_velocity, self.c_turn_velocity)
                     else: navigation.speed(self.c_turn_velocity, -self.c_turn_velocity)
                 else:
@@ -125,7 +129,7 @@ class Camera:
                     if self.c_side == "right": ray = 60
 
                     print("dist found", self.lidar.ray_dist(ray, current_tick))
-                    if self.lidar.ray_dist(ray, current_tick) > 0.08: 
+                    if self.lidar.ray_dist(ray, current_tick) > 0.1: 
                         self.c_end = True
                     
                     self.c_found_side = True
@@ -162,7 +166,7 @@ class Camera:
                     print("token coords from", self.c_side, token_coords)
 
                     print("dist center", self.lidar.ray_dist(ray, current_tick))
-                    if self.lidar.ray_dist(ray, current_tick) > 0.08: 
+                    if self.lidar.ray_dist(ray, current_tick) > 0.09: 
                         self.c_end = True
                     else:
                         self.c_id = self.closest_token(token_coords)
@@ -267,8 +271,10 @@ class Camera:
 
             self.c_initial_tick = True
             self.c_end = False
-            self.sign_colleted.append(self.sign_list[self.c_id])
-            self.sign_list.pop(self.c_id)
+            if self.c_id != -1:
+                print("deleted", self.sign_list[self.c_id][1])
+                self.sign_colleted.append(self.sign_list[self.c_id])
+                self.sign_list.pop(self.c_id)
             self.camera_left.enable(self.time_step*5)
             self.camera_right.enable(self.time_step*5)
 
@@ -598,7 +604,7 @@ class Camera:
                                 if abs(v[4][0]-ang_min) < 0.3 or 2*math.pi-abs(v[4][0]-ang_min) < 0.3:
                                     if vitima_igual:
                                         self.sign_list.pop(cont)
-                                    else:
+                                    elif x_right - x_left >= v[0]:
                                         self.sign_list[cont] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]]
                                         #print("atualizei", a, b)
                                     vitima_igual = True
