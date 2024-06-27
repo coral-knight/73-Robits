@@ -73,7 +73,7 @@ class Lidar:
                                 if abs(ang_x_3 - ang_x_1) < 0.1 and abs(ang_y_3 - ang_y_1) < 0.1 and max(abs(ang_x_3), abs(ang_y_3)) > 0.15:
                                     coordX_3 += math.tan(-ang_x_3) * (coordZ_3 + 0.066)
                                     coordY_3 += math.tan(-ang_y_3) * (coordZ_3 + 0.066)
-                                    print("conical shaped", ang_x_3, ang_y_3)
+                                    #print("conical shaped", ang_x_3, ang_y_3)
 
                             self.map.add_obstacle([coordX_3, coordY_3])
 

@@ -35,10 +35,10 @@ class Sensors:
             self.lidar.update(current_tick)
             self.camera.seen(current_tick)
 
-        if current_tick % 10 == 0 and self.camera.c_initial_tick == True:
+        #if current_tick % 10 == 0 and self.camera.c_initial_tick == True:
             #self.camera.identify_token(self.camera.joint_image())
-            self.camera.update_token(current_tick)
-            self.camera.update_ground()
+            #self.camera.update_token(current_tick)
+            #self.camera.update_ground()
 
         for i in range(-1, 2):
             for j in range(-1, 2):

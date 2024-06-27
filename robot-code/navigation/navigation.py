@@ -158,8 +158,8 @@ class Navigation:
         return
     
 
-    def path_smoothing(self):
-        p, v = 0, len(self.action_list)-1
+    def path_smoothing(self, ini):
+        p, v = ini, len(self.action_list)-1
         aux_list = [["Walk To", self.sensors.gps.last]]
 
         print("smoothing", v, "walks")
@@ -173,7 +173,7 @@ class Navigation:
             else: 
                 v -= 1
 
-        self.action_list = aux_list[1:]
+        self.action_list[ini:] = aux_list[1:]
 
         return
     
@@ -253,6 +253,7 @@ class Navigation:
 
         #walk_list = unwalk_list + walk_list
 
+        ini = len(self.action_list)
         self.append_list(self.sensors.gps.last, 1)
         for i in range(len(walk_list)-1, -1, -1):
             self.append_list(walk_list[i], 1)
@@ -260,7 +261,7 @@ class Navigation:
         for i in range(len(unwalk_list)-1, -1, -1):
             self.append_list(unwalk_list[i], 0)
 
-        self.path_smoothing()
+        self.path_smoothing(ini)
 
         return
     

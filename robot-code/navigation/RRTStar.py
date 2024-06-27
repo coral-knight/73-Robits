@@ -111,23 +111,26 @@ class RRTStar:
         return [x, y]
     
 
-    def closest_point(self, point, op): 
+    def closest_point(self, point, op, max): 
         # Find the closest node to the point
 
         mapx, mapy = self.real_to_map(point)
 
-        closest = [1000,1000]
+        closest = [[1000,1000], [[1000, 1000], 1000]]
         depth = 0
 
         c = 0
-        while closest == [1000,1000] and c < 50:
+        while closest[0] == [1000,1000] and c < max:
             c+=1
             for y in range(mapy-depth, mapy+depth+1):
                 for x in range(mapx-depth, mapx+depth+1, (1 if y == mapy-depth or y == mapy+depth else 2*depth)):
                     if x >= 0 and x < np.size(self.graph, 0) and y >= 0 and y < np.size(self.graph, 1):
+                        c = 0
                         for v in self.graph[x, y]:
                             if v != 0 and self.dist_coords(closest, point) > self.dist_coords(v[0], point) and (not op or not self.wall_between(v[0], point)) and v[3] == True:
-                                closest = v[0]
+                                closest[0] = v[0]
+                                closest[1] = [[x, y], c]
+                            c += 1
             depth += 1
         if c == 50: print("WHILE CLOSEST")
 
@@ -193,7 +196,7 @@ class RRTStar:
     def update(self, pos, op):
         # Add current position to the Global RRT Graph 
 
-        closest = self.closest_point(pos, 1)
+        closest = self.closest_point(pos, 1, 50)[0]
         if op == 1: print("update closest", closest, self.dist_coords(pos, closest))
         if op == 1 or self.dist_coords(pos, closest) > self.min_dist:
             parent, self.cur_tile = self.add_graph(pos)
@@ -289,7 +292,7 @@ class RRTStar:
             ticks -= 1
 
             point = self.random_point()
-            closest = self.closest_point(point, 0)
+            closest = self.closest_point(point, 0, 50)[0]
             point = self.project_point(point, closest)
             parent, pos = self.add_graph(point)
             if parent == [1000, 1000]: continue

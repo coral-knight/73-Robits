@@ -124,6 +124,7 @@ class Camera:
                     if self.c_side == "left": ray = 450
                     if self.c_side == "right": ray = 60
 
+                    print("dist found", self.lidar.ray_dist(ray, current_tick))
                     if self.lidar.ray_dist(ray, current_tick) > 0.08: 
                         self.c_end = True
                     
@@ -160,6 +161,7 @@ class Camera:
                     token_coords = [self.gps.front[0] + dist * math.cos(self.gyro.last+ang), self.gps.front[1] + dist * math.sin(self.gyro.last+ang)]
                     print("token coords from", self.c_side, token_coords)
 
+                    print("dist center", self.lidar.ray_dist(ray, current_tick))
                     if self.lidar.ray_dist(ray, current_tick) > 0.08: 
                         self.c_end = True
                     else:
@@ -424,10 +426,10 @@ class Camera:
 
 
     def seen(self, current_tick):
-        ray_left = round((math.pi-(0.75))*256/math.pi)
+        ray_left = round((math.pi-(1.5))*256/math.pi)
         ray_left = (ray_left+255) % 512 + 5
 
-        ray_right = round((math.pi+(0.75))*256/math.pi)
+        ray_right = round((math.pi+(1.5))*256/math.pi)
         ray_right = (ray_right+255) % 512 - 5
 
         ray = ray_left
@@ -437,7 +439,7 @@ class Camera:
             if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.25:
                 for i in range(20): 
                     [x, y] = [(i*self.gps.front[0]+(19-i)*coordX)/19, (i*self.gps.front[1]+(19-i)*coordY)/19]
-                    if self.dist_coords(self.gps.front, [x, y]) > 0.037 and self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.03:
+                    if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
                         self.map.seen([x, y])
                     else:
                         break
@@ -614,13 +616,10 @@ class Camera:
         colour = self.identify_colour(initial_hsv)
 
         values, diff_value = [hsv_img.item(yi, xi, 2)], 1
-        top = 40
+        min_top = 40
         ground = []
-
-        x_left_l, x_right_l = 256, -1 # left camera
-        y_up_l, y_down_l = 40, -1 
-        x_left_r, x_right_r = 256, -1 # right camera
-        y_up_r, y_down_r = 40, -1
+        edges_l = []
+        edges_r = []
 
         area = 0
         vis = np.zeros([256,40])
@@ -636,6 +635,7 @@ class Camera:
 
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
 
+                if y > 0: top_hsv = [hsv_img.item(y-1, x, 0), hsv_img.item(y-1, x, 1), hsv_img.item(y-1, x, 2)]
                 if y < 39: bottom_hsv = [hsv_img.item(y+1, x, 0), hsv_img.item(y+1, x, 1), hsv_img.item(y+1, x, 2)]
                 if x < 255: right_hsv = [hsv_img.item(y, x+1, 0), hsv_img.item(y, x+1, 1), hsv_img.item(y, x+1, 2)]
                 if x > 0: left_hsv = [hsv_img.item(y, x-1, 0), hsv_img.item(y, x-1, 1), hsv_img.item(y, x-1, 2)]
@@ -647,14 +647,16 @@ class Camera:
                     values.append(colour_hsv[2])
                     diff_value += 1
 
-                top = min(top, y)
+                min_top = min(min_top, y)
 
-                bot, left, right = False, False, False
-                if y < 39 and not self.is_wall(bottom_hsv) and (abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188)):
+                top, bot, left, right = False, False, False, False
+                if y > 0 and (not self.is_wall(top_hsv) and (abs(initial_hsv[0] - top_hsv[0]) > 10 or abs(initial_hsv[1] - top_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and top_hsv[2] > 188))):
+                    top = True
+                if y < 39 and (not self.is_wall(bottom_hsv) and (abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188))):
                     bot = True
-                if x > 0 and not self.is_wall(left_hsv) and (abs(initial_hsv[0] - left_hsv[0]) > 10 or abs(initial_hsv[1] - left_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and left_hsv[2] > 188)):
+                if x > 0 and (not self.is_wall(left_hsv) and (abs(initial_hsv[0] - left_hsv[0]) > 10 or abs(initial_hsv[1] - left_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and left_hsv[2] > 188))):
                     left = True
-                if x < 255 and not self.is_wall(right_hsv) and (abs(initial_hsv[0] - right_hsv[0]) > 10 or abs(initial_hsv[1] - right_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and right_hsv[2] > 188)):
+                if x < 255 and (not self.is_wall(right_hsv) and (abs(initial_hsv[0] - right_hsv[0]) > 10 or abs(initial_hsv[1] - right_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and right_hsv[2] > 188))):
                     right = True
                         
                 if bot and left and right: ground.append([x, y-2])
@@ -662,16 +664,14 @@ class Camera:
                 elif bot and right: ground.append([x-2, y-1])
                 elif bot: ground.append([x, y-2])
                         
-                if x < 128:
-                    x_left_l = min(x, x_left_l)
-                    x_right_l = max(x, x_right_l)
-                    y_up_l = min(y, y_up_l)
-                    y_down_l = max(y, y_down_l)
-                if x >= 128:
-                    x_left_r = min(x, x_left_r)
-                    x_right_r = max(x, x_right_r)
-                    y_up_r = min(y, y_up_r)
-                    y_down_r = max(y, y_down_r)
+                if y == 0 or self.is_wall(top_hsv): top = True
+                if y == 39 or self.is_wall(bottom_hsv): bot = True
+                if x == 0 or self.is_wall(left_hsv): left = True
+                if x == 255 or self.is_wall(right_hsv): right = True
+
+                s = top + bot + left + right
+                if x == 127 or (s >= 1 and x < 127): edges_l.append([x, y])
+                if x == 128 or (s >= 1 and x > 128): edges_r.append([x, y])
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
@@ -682,17 +682,16 @@ class Camera:
 
         if area == 10000: print("while quebrou")
 
-        if x_right_l != -1: mid_x_l, mid_y_l = (x_left_l+x_right_l)/2, (y_up_l+y_down_l)/2
-        else: mid_x_l, mid_y_l = 1000, 1000
-        if x_right_r != -1: mid_x_r, mid_y_r = (x_left_r+x_right_r)/2, (y_up_r+y_down_r)/2
-        else: mid_x_r, mid_y_r = 1000, 1000
+        centroid_l, centroid_r = [1000,1000], [1000,1000]
+        if area > 150:
+            if len(edges_l) > 0: centroid_l = self.centroid(edges_l)
+            if len(edges_r) > 0: centroid_r = self.centroid(edges_r)
 
-        if area < 150: mid_x_l, mid_y_l, mid_x_r, mid_y_r = 1000, 1000, 1000, 1000
-
-        return [int(mid_x_l), int(mid_y_l), int(mid_x_r), int(mid_y_r), top, diff_value, ground, img]
+        return [centroid_l, centroid_r, min_top, diff_value, ground, img]
 
 
-    def pixel_position(self, x, y):
+    def pixel_ground_position(self, pos):
+        [x, y] = pos
         if y <= 19: return [1000, 1000]
         if x == 1000: return [1000, 1000]
 
@@ -736,7 +735,7 @@ class Camera:
 
             for [i, j] in ground:
                 if not all(([a, b] == [i, j] or abs(b - j) > 3) for [a, b] in ground):
-                    [coord_X, coord_Y] = self.pixel_position(i, j-1)
+                    [coord_X, coord_Y] = self.pixel_ground_position([i, j-1])
                     self.map.add_obstacle([coord_X, coord_Y])
                     self.map.add_extra([coord_X, coord_Y], 'ob')
                     print("added obstacle", [i, j], [coord_X, coord_Y])'''
@@ -749,7 +748,7 @@ class Camera:
 
         cv2.imwrite("0_image.png", hsv_img)
 
-        print("Start ==========================")
+        #print("Start ==========================")
 
         for x in range(0, 256):
             if self.is_wall([hsv_img.item(0, x, 0), hsv_img.item(0, x, 1), hsv_img.item(0, x, 2)]): continue 
@@ -760,23 +759,26 @@ class Camera:
                 if self.is_wall(colour_hsv): break
                 if self.is_blank_ground(colour_hsv): continue
 
-                print("TEM COISA", x, y, "----------------------------")
-                print("colour", g_colour)
-                cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
+                #print("TEM COISA", x, y, "----------------------------")
+                #print("colour", g_colour)
+                #cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
 
-                [mid_x_l, mid_y_l, mid_x_r, mid_y_r, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
+                [centroid_l, centroid_r, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
                 if self.is_obstacle(top, diff_value, ground, g_colour): 
-                    print("OBSTACLE")
-                    cv2.imwrite("obstacle_" + str(x) + "_" + str(y) + ".png", hsv_img) 
+                    #print("OBSTACLE")
+                    #cv2.imwrite("obstacle_" + str(x) + "_" + str(y) + ".png", hsv_img) 
                     continue
 
                 if g_colour == 'N': continue
 
-                [coord_X_l, coord_Y_l] = self.pixel_position(mid_x_l, mid_y_l)
-                [coord_X_r, coord_Y_r] = self.pixel_position(mid_x_r, mid_y_r)
-                print("coord left", [coord_X_l, coord_Y_l])
-                print("coord right", [coord_X_r, coord_Y_r])
+                #print("centroid left", centroid_l)
+                #print("centroid right", centroid_r)
+
+                [coord_X_l, coord_Y_l] = self.pixel_ground_position(centroid_l)
+                [coord_X_r, coord_Y_r] = self.pixel_ground_position(centroid_r)
+                #print("coord left", [coord_X_l, coord_Y_l])
+                #print("coord right", [coord_X_r, coord_Y_r])
                 self.map.add_extra([coord_X_l, coord_Y_l], g_colour)
                 self.map.add_extra([coord_X_r, coord_Y_r], g_colour)
                 if g_colour == 'bh': self.map.add_obstacle([coord_X_l, coord_Y_l])
@@ -867,3 +869,11 @@ class Camera:
 
         print("areas", len(areas))
         return [areas[0][1], areas[1][1], areas[2][1], areas[3][1]]
+
+
+    def centroid(self, vertexes):
+        vertexes = np.array(vertexes)
+        length = vertexes.shape[0]
+        sum_x = np.sum(vertexes[:, 0])
+        sum_y = np.sum(vertexes[:, 1])
+        return [sum_x/length, sum_y/length]

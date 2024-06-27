@@ -27,6 +27,7 @@ class Robot:
         self.c_initial_pos = [0, 0]
         self.c_total_gyro = 0
         self.c_last_tick_gyro = 0
+        self.explored = True
 
 
     def run_calibration(self):
@@ -70,8 +71,11 @@ class Robot:
             self.calibrated = False
             return
         
+
         self.sensors.update(self.current_tick)
 
+
+        # Initial configuration
         if self.current_tick == self.calibration_timer+1:
             self.navigation.speed(0,0)
             self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
@@ -84,7 +88,7 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
+        if not self.exploring and self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
@@ -131,7 +135,7 @@ class Robot:
 
 
         # Find a new point on the RRTs to go 
-        if not self.navigation.collecting and not self.navigation.exploring:
+        if not self.explored and not self.navigation.collecting and not self.navigation.exploring:
             self.navigation.speed(0, 0)
             print("------------------------------------")
 
@@ -152,8 +156,8 @@ class Robot:
                 
 
             if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
-                print("n achou nada \n volta spawn")
-                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
+                print("TERMINOU DE EXPLORAR")
+                self.explored = True
 
             elif len(local_unexplored) > 0:
                 print("found LOCAL unexplored")
@@ -165,6 +169,60 @@ class Robot:
                 print("found GLOBAL unexplored")
                 print(global_unexplored[0])
                 self.navigation.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
+
+
+        # Go to marked tokens, and then spawn
+        if self.explored and not self.navigation.exploring:
+            if len(self.sensors.camera.sign_list) > 0:
+                walk_token = []
+                for sign in self.sensors.camera.sign_list:
+                    print("end token", sign)
+
+                    [a, b] = sign[1]
+                    [ae, be] = sign[2]
+                    [ad, bd] = sign[3]
+
+                    vi = [ad-ae, bd-be]
+                    u = [vi[1], -1*vi[0]]
+
+                    w = [vi[0] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2))]
+                    uw = [w[1], -1*w[0]]
+
+                    w2 = [-1*w[0], -1*w[1]]
+                    uw2 = [-1*w2[1], w2[0]]
+
+                    x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
+                    y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
+
+                    x_right = uw[0] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
+                    y_right = uw[1] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
+
+                    x_left = uw2[0] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
+                    y_left = uw2[1] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
+
+                    if self.no_obstacle([x, y]): x, y = x, y
+                    elif self.no_obstacle([x_right, y_right]): x, y = x_right, y_right
+                    elif self.no_obstacle([x_left, y_left]): x, y = x_left, y_left
+
+                    cont = 0
+                    closest = self.global_rrt.closest_point([x, y], 0, 1)
+                    while self.dist_coords([x, y], closest[0]) > 0.02 and cont < 1000:
+                        cont += 1
+                        self.global_rrt.explore(1)
+                        closest = self.global_rrt.closest_point([x, y], 0, 1)
+
+                    if cont == 1000: print("n pode ir para", [a, b])
+                    if cont < 1000: walk_token.append(closest)
+
+                current_pos = self.sensors.gps.last
+                for w in walk_token:
+                    print("from", current_pos, "to", w[0])
+                    self.navigation.solve([w[0], w[1]], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)])
+                    self.navigation.append_list(w[0], 2)
+                    current_pos = w[0]
+            else:
+                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
+
 
         # Navigate
         if self.navigation.exploring:
@@ -199,6 +257,7 @@ class Robot:
                     exit_mes = struct.pack('c', b'E')
                     self.sensors.emitter.send(exit_mes)
         
+
         return
         
 
@@ -227,6 +286,19 @@ class Robot:
         return dist
 
 
+    def no_obstacle(self, pos):
+        map_p = self.map.real_to_map(pos)
+
+        for x in range(-1, 2):
+            for y in range(-1, 2):
+                if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
+                    for v in self.map.map[map_p[0]+x, map_p[1]+y]:
+                        if v != 0 and self.dist_coords(pos, v) < 0.037:
+                            return True
+                        
+        return False
+
+
     def wall_between(self, a, b):
         # Can the robot go safely from a to b?
 
@@ -246,4 +318,3 @@ class Robot:
                                 return True
                 
         return False
-                
