@@ -70,11 +70,11 @@ class Camera:
     def collect(self, navigation, current_tick):
         # Controller for all components and actions of the Collect function
 
-        print("=======\nCollect")
-
         img, hsv_img = self.joint_image()
         
         if self.c_initial_tick:
+            print("=======\nCollect")
+
             self.c_id = self.closest_token(self.gps.last)
             if self.c_id == -1: self.c_end = True
             self.c_turn_velocity = navigation.turn_velocity-1.5
@@ -112,9 +112,6 @@ class Camera:
                 if self.c_side == "none":
                     if abs(delta_angle_left) <= abs(delta_angle_right): self.c_side = "left"
                     if abs(delta_angle_left) >= abs(delta_angle_right): self.c_side = "right"
-
-                print(delta_angle_left, delta_angle_right)
-                print("decided", self.c_side)
 
                 if self.c_side == "left": delta_angle = delta_angle_left
                 if self.c_side == "right": delta_angle = delta_angle_right
@@ -177,17 +174,11 @@ class Camera:
             # Identify the token's type
             elif not self.c_identified:  
                 navigation.speed(0, 0)
-                #self.c_type = self.identify_token(img, self.c_type, current_tick)
+                self.c_type = self.identify_token([img, hsv_img], self.c_side)
                 # VERIFICAR SE JA PEGO
-                self.c_type = 'H'
+                # self.c_type = 'H'
 
-                #if self.c_type == 'N' or self.identify_colour([hsv_img.item(16, 128, 0), hsv_img.item(16, 128, 1), hsv_img.item(16, 128, 2)]) == 'ob': 
-                #    self.c_initial_tick = True
-                #    self.sign_colleted.append(self.sign_list[self.c_id])
-                #    self.sign_list.pop(self.c_id)
-                #    self.camera_left.enable(self.time_step*10)
-                #    self.camera_right.enable(self.time_step*10)
-                #    return False
+                if self.c_type == 'N': self.c_end = True 
 
                 self.c_identified = True
                 print("identified", self.c_type)
@@ -243,7 +234,9 @@ class Camera:
                     sign_coords = [self.gps.front[0] + dist * math.cos(self.gyro.last), self.gps.front[1] + dist * math.sin(self.gyro.last)]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("time to send")
-                    print("coords", dist, sign_coords)
+                    print("coords", sign_coords)
+
+                    print("message coords", [int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100)])
 
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     self.emitter.send(message)
@@ -282,52 +275,152 @@ class Camera:
 
         return True
     
+
+    def find_square_vertices(self, v1, v2):
+        # Calculate the midpoint
+        mid_x = (v1[0] + v2[0]) / 2
+        mid_y = (v1[1] + v2[1]) / 2
+
+        # Calculate the vector from v1 to v2
+        vec_x = v2[0] - v1[0]
+        vec_y = v2[1] - v1[1]
+
+        # Perpendicular vector (rotated by 90 degrees)
+        perp_vec_x = -vec_y
+        perp_vec_y = vec_x
+
+        # Calculate half of the length of the side of the square
+        half_side_length = np.sqrt(perp_vec_x**2 + perp_vec_y**2) / 2
+
+        # Normalize the perpendicular vector
+        norm = np.sqrt(perp_vec_x**2 + perp_vec_y**2)
+        perp_vec_x /= norm
+        perp_vec_y /= norm
+
+        # Calculate the other two vertices
+        v3 = (mid_x + perp_vec_x * half_side_length, mid_y + perp_vec_y * half_side_length)
+        v4 = (mid_x - perp_vec_x * half_side_length, mid_y - perp_vec_y * half_side_length)
+
+        return v3, v4
+
  
     def find_vertex(self, hsv_img):
-        mid = [128, 20] # [x, y]
+        mid = [64, 20] # [x, y]
         visited = []
         queue = []
         visited.append(mid)
         queue.append(mid)
 
         vertices = []
+        x_least_top = mid[0]
+        x_greater_top = mid[0]
+        x_least_bot = mid[0]
+        x_greater_bot = mid[0]
+        left_up = mid
+        left_down = mid
+        right_up = mid
+        right_down = mid
+        up_left = mid
+        up_right = mid
+        down_left = mid 
+        down_right = mid
+
         while queue:
-            atual = queue.pop(0)
-            # print("Atual:", atual)
-            x_atual = atual[0]
-            y_atual = atual[1]
+            current = queue.pop(0)
+
+            x_current = current[0]
+            y_current = current[1]
+
+            if y_current == 0:
+                x_least_top = min(x_current, x_least_top)
+                x_greater_top = max(x_current, x_greater_top)
+            if y_current == 39:
+                x_least_bot = min(x_current, x_least_bot)
+                x_greater_bot = max(x_current, x_greater_bot)
+
+            # Caso mais esquerda, em cima
+            if x_current < left_up[0] or (x_current == left_up[0] and y_current <= left_up[1]):
+                left_up = [x_current, y_current]
+            # Caso mais a esquerda, embaixo
+            if x_current < left_down[0] or (x_current == left_down[0] and y_current >= left_down[1]):
+                left_down = [x_current, y_current]
+            # Caso direita, cima
+            if x_current > right_up[0] or (x_current == right_up[0] and y_current <= right_up[1]):
+                right_up = [x_current, y_current]
+            # Caso direita, baixo 
+            if x_current > right_down[0] or (x_current == right_down[0] and y_current >= right_down[1]):
+                right_down = [x_current, y_current]
+
+            # Caso cima, esquerda
+            if y_current < up_left[1] or (y_current == up_left[1] and x_current <= up_left[0]):
+                up_left = [x_current, y_current]
+            # Caso cima, direita 
+            if y_current < up_right[1] or (y_current == up_right[1] and x_current >= up_right[0]):
+                up_right = [x_current, y_current]
+            # Caso baixo, esquerda
+            if y_current > down_left[1] or (y_current == down_left[1] and x_current <= down_left[0]):
+                down_left = [x_current, y_current]
+            # Caso baixo, direita 
+            if y_current > down_right[1] or (y_current == down_right[1] and x_current >= down_right[0]):
+                down_right = [x_current, y_current]
 
             # Checa se e vertice
             cont_adj = 0
 
-            if(y_atual < 39):
-                px = [hsv_img.item(y_atual+1, x_atual, 0), hsv_img.item(y_atual+1, x_atual, 1), hsv_img.item(y_atual+1, x_atual, 2)]
+            if(y_current < 39):
+                px = [hsv_img.item(y_current+1, x_current, 0), hsv_img.item(y_current+1, x_current, 1), hsv_img.item(y_current+1, x_current, 2)]
                 if(not self.is_wall(px)): cont_adj += 1
-            if(y_atual > 0):
-                px = [hsv_img.item(y_atual-1, x_atual, 0), hsv_img.item(y_atual-1, x_atual, 1), hsv_img.item(y_atual-1, x_atual, 2)]
+            if(y_current > 0):
+                px = [hsv_img.item(y_current-1, x_current, 0), hsv_img.item(y_current-1, x_current, 1), hsv_img.item(y_current-1, x_current, 2)]
                 if(not self.is_wall(px)): cont_adj += 1
-            if(x_atual < 255):
-                px = [hsv_img.item(y_atual, x_atual+1, 0), hsv_img.item(y_atual, x_atual+1, 1), hsv_img.item(y_atual, x_atual+1, 2)]
+            if(x_current < 127):
+                px = [hsv_img.item(y_current, x_current+1, 0), hsv_img.item(y_current, x_current+1, 1), hsv_img.item(y_current, x_current+1, 2)]
                 if(not self.is_wall(px)): cont_adj += 1
-            if(x_atual > 0):
-                px = [hsv_img.item(y_atual, x_atual-1, 0), hsv_img.item(y_atual, x_atual-1, 1), hsv_img.item(y_atual, x_atual-1, 2)]
+            if(x_current > 0):
+                px = [hsv_img.item(y_current, x_current-1, 0), hsv_img.item(y_current, x_current-1, 1), hsv_img.item(y_current, x_current-1, 2)]
                 if(not self.is_wall(px)): cont_adj += 1
 
             if(cont_adj == 1 or cont_adj == 2):
-                angle_center = math.atan2(y_atual-mid[1], x_atual-mid[0])
-                vertices.append([angle_center, [x_atual, y_atual]])
+                angle_center = math.atan2(y_current-mid[1], x_current-mid[0])
+                vertices.append([angle_center, [x_current, y_current]])
                 
             for y in range(-1, 2, 1):
                 for x in range(-1, 2, 1):
-                    x_next = x_atual+x
-                    y_next = y_atual+y
-                    if(x_next >= 0 and y_next >= 0 and x_next < 256 and y_next < 40):
+                    x_next = x_current+x
+                    y_next = y_current+y
+                    if(x_next >= 0 and y_next >= 0 and x_next < 128 and y_next < 40):
                         px = [hsv_img.item(y_next, x_next, 0), hsv_img.item(y_next, x_next, 1), hsv_img.item(y_next, x_next, 2)]
                         if not self.is_wall(px) and [x_next, y_next] not in visited:
                             visited.append([x_next, y_next])
                             queue.append([x_next, y_next])
 
-        if(len(vertices) < 4): return [[0, 0], [0, 0], [0, 0], [0, 0]]
+        if len(vertices) == 0: return [[0, 0], [0, 0], [0, 0], [0, 0]]
+
+        cont_last_column = 0
+        for xi in range (left_up[0], right_up[0]+1, 1):
+            cont_cur_column = 0
+            for yi in range (up_left[1], down_left[1]+1, 1):
+                px = [hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)]
+                if not self.is_wall(px):
+                    cont_cur_column += 1
+
+            if cont_last_column != 0 and abs(cont_cur_column - cont_last_column) >= 10:
+                vertices.sort()
+                sorted_vertices = []
+                for i in vertices: sorted_vertices.append(i[1])
+
+                return self.visvalingam_whyatt(sorted_vertices)
+            
+            cont_last_column = cont_cur_column
+    
+        if x_greater_top - x_least_top >= 1 or x_greater_bot - x_least_bot >= 1:
+            v3, v4 = self.find_square_vertices(left_down, right_up)
+            angleToCenter = math.atan2(v3[1]-mid[1], v3[0]-mid[0])
+            vertices.append([angleToCenter, [v3[0], v3[1]]])
+
+            angleToCenter = math.atan2(v4[1]-mid[1], v4[0]-mid[0])
+            vertices.append([angleToCenter, [v4[0], v4[1]]])
+
         vertices.sort()
         sorted_vertices = []
         for i in vertices: sorted_vertices.append(i[1])
@@ -372,15 +465,35 @@ class Camera:
             return 'H'
 
 
-    def identify_token(self, joint):
+    def identify_token(self, joint, side):
         [img, hsv_img] = joint
+        print("side of identify", side)
+        if side == "left": 
+            print("left")
+            img = img[0:40, 0:128]
+            hsv_img = hsv_img[0:40, 0:128]
+        if side == "right": 
+            print("right")
+            img = img[0:40, 128:256]
+            hsv_img = hsv_img[0:40, 128:256]
 
-        resolution = 250
+        cv2.imwrite("identify.png", img)
+
+        vertexes = self.find_vertex(hsv_img)
+        vertexes[0][1] += 40
+        vertexes[1][1] += 40
+        vertexes[2][1] += 40
+        vertexes[3][1] += 40
+        if vertexes[0] == vertexes[1] and vertexes[1] == vertexes[2] and vertexes[2] == vertexes[3]: return 'N'
+
+        img = cv2.copyMakeBorder(img, 40, 40, 0, 0, cv2.BORDER_CONSTANT, None, value = [255, 255, 255])
+        hsv_img = cv2.cvtColor(np.float32(img), cv2.COLOR_BGR2HSV)
+
+        cv2.imwrite("border_rgb.png", img)
+        cv2.imwrite("border_hsv.png", hsv_img)
 
         # Warping
-        vertexes = self.find_vertex(hsv_img)
-        if vertexes[0] == vertexes[1] and vertexes[1] == vertexes[2] and vertexes[2] == vertexes[3]: return 'N'
-        print("vertices", vertexes)
+        resolution = 250
         pts1 = np.float32(vertexes)
         pts2 = np.float32([[0, 0], [resolution, 0], [resolution, resolution], [0, resolution]])
         M = cv2.getPerspectiveTransform(pts1, pts2)
@@ -428,6 +541,7 @@ class Camera:
         print("poison per", percentage)
         if(percentage < 0.20): return 'P'
         
+        cv2.imwrite("warped_binary.png", warped_binary)
         return self.identify_letter(warped_binary)
 
 
@@ -627,6 +741,34 @@ class Camera:
             print(s)
 
 
+    def pixel_ground_position(self, pos):
+        [x, y] = pos
+        if x == 1000 or y <= 19: return [1000, 1000]
+
+        horizontal_fov = 1.5
+        vertical_fov = 0.566587633
+
+        angle_Y = math.atan((y-19.5) * math.tan(vertical_fov/2) / 19.5)
+        d_min = 0.0303/math.tan(angle_Y)
+
+        #if d_min > 0.28: return [1000, 1000]
+
+        if x < 128: 
+            angle_X = math.atan((-x+63.5) * math.tan(horizontal_fov/2) / 63.5)
+            distance = d_min / math.cos(angle_X)
+            angle_X += 0.75
+
+        if x >= 128:
+            angle_X = math.atan((-(x-128)+63.5) * math.tan(horizontal_fov/2) / 63.5)
+            distance = d_min / math.cos(angle_X)
+            angle_X -= 0.75
+
+        coord_X = self.gps.front[0] + distance * math.cos(self.gyro.last + angle_X)
+        coord_Y = self.gps.front[1] + distance * math.sin(self.gyro.last + angle_X)
+
+        return [coord_X, coord_Y]
+
+
     def bfs_tile(self, hsv_img, xi, yi):
         img = hsv_img.copy()
         initial_hsv = [hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)]
@@ -635,7 +777,7 @@ class Camera:
         values, diff_value = [hsv_img.item(yi, xi, 2)], 1
         min_top = 40
         ground = []
-        leftmost, rightmost, higher, lower = [0, 0], [0, 0], [0, 0], [0, 0]
+        leftmost, rightmost, higher, lower = [1000, 0], [-1000, 0], [0, -1000], [0, 1000]
 
         area = 0
         vis = np.zeros([256,40])
@@ -681,10 +823,11 @@ class Camera:
                 elif bot: ground.append([x, y-2])
 
                 coords = self.pixel_ground_position([x, y])
-                if coords[0] < leftmost[0]: leftmost = coords
-                if coords[0] > rightmost[0]: rightmost = coords
-                if coords[1] < higher[1]: higher = coords
-                if coords[1] > lower[1]: lower = coords
+                if coords != [1000, 1000]:
+                    if coords[0] < leftmost[0]: leftmost = coords
+                    if coords[0] > rightmost[0]: rightmost = coords
+                    if coords[1] > higher[1]: higher = coords
+                    if coords[1] < lower[1]: lower = coords
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
@@ -695,36 +838,9 @@ class Camera:
 
         if area == 10000: print("while quebrou")
 
+        #if area < 150: leftmost, rightmost, higher, lower = [1000, 1000], [1000, 1000], [1000, 1000], [1000, 1000]
+
         return [leftmost, rightmost, higher, lower, min_top, diff_value, ground, img]
-
-
-    def pixel_ground_position(self, pos):
-        [x, y] = pos
-        if y <= 19: return [1000, 1000]
-        if x == 1000: return [1000, 1000]
-
-        horizontal_fov = 1.5
-        vertical_fov = 0.566587633
-
-        angle_Y = math.atan((y-19.5) * math.tan(vertical_fov/2) / 19.5)
-        d_min = 0.0303/math.tan(angle_Y)
-
-        if d_min > 0.28: return [1000, 1000]
-
-        if x < 128: 
-            angle_X = math.atan((-x+63.5) * math.tan(horizontal_fov/2) / 63.5)
-            distance = d_min / math.cos(angle_X)
-            angle_X += 0.75
-
-        if x >= 128:
-            angle_X = math.atan((-(x-128)+63.5) * math.tan(horizontal_fov/2) / 63.5)
-            distance = d_min / math.cos(angle_X)
-            angle_X -= 0.75
-
-        coord_X = self.gps.last[0] + distance * math.cos(self.gyro.last + angle_X)
-        coord_Y = self.gps.last[1] + distance * math.sin(self.gyro.last + angle_X)
-
-        return [coord_X, coord_Y]
 
 
     def is_obstacle(self, top, diff_value, ground, colour):
@@ -767,14 +883,14 @@ class Camera:
                 if self.is_wall(colour_hsv): break
                 if self.is_blank_ground(colour_hsv): continue
 
-                #print("TEM COISA", x, y, "----------------------------")
-                #print("colour", g_colour)
+                print("TEM COISA", x, y, "----------------------------")
+                print("colour", g_colour)
                 #cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
 
                 [leftmost, rightmost, higher, lower, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
                 if self.is_obstacle(top, diff_value, ground, g_colour): 
-                    #print("OBSTACLE")
+                    print("OBSTACLE")
                     #cv2.imwrite("obstacle_" + str(x) + "_" + str(y) + ".png", hsv_img) 
                     continue
 
