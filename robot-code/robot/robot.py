@@ -216,7 +216,9 @@ class Robot:
                         if len(new) > 0 and not self.global_rrt.wall_between([x, y], new[0]): parent = new[0]
 
                     print("achou ponto", cont)
-                    if cont == 1000: print("n pode ir para", [a, b])
+                    if cont == 1000: 
+                        print("n pode ir para", [a, b])
+                        self.sensors.camera.sign_list.remove(sign)
                     if cont < 1000: 
                         self.global_rrt.connect([x, y], parent)
                         walk_token.append([x, y])
@@ -278,9 +280,9 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             else:
-                self.run_simulation()
-                #self.navigation.speed(0, 0)
-                #self.sensors.update(self.current_tick)
+                #self.run_simulation()
+                self.navigation.speed(0, 0)
+                self.sensors.update(self.current_tick)
             #if self.current_tick % 200 and self.current_tick > 50:
                 #print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
         return

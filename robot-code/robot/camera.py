@@ -442,9 +442,11 @@ class Camera:
         while ray != ray_right:
             [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
 
-            if self.dist_coords(self.gps.front, [coordX, coordY]) < 0.25:
-                for i in range(20): 
-                    [x, y] = [(i*self.gps.front[0]+(19-i)*coordX)/19, (i*self.gps.front[1]+(19-i)*coordY)/19]
+            dist = self.dist_coords(self.gps.front, [coordX, coordY])
+            if dist < 0.7:
+                d = int(dist/0.02) if int(dist/0.02) > 0 else 1
+                for i in range(d): 
+                    [x, y] = [(i*self.gps.front[0]+(d-1-i)*coordX)/19, (i*self.gps.front[1]+(d-1-i)*coordY)/19]
                     if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
                         self.map.seen([x, y])
                     else:
@@ -488,11 +490,15 @@ class Camera:
                             right_count = right_count + 1
                             right_camera = [img.item(y-up_count, x+right_count, 0), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 2)]
 
-                        if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
-                            x_left = x
-                            x_right = x+right_count-1
-
-                            deltas.append([x_left, x_right])
+                        if right_count >= 2:
+                            new = True
+                            for d in deltas: 
+                                if (x < d[1] + 1 and x+right_count > d[0] - 1): new = False
+                            
+                            if new:
+                                x_left = x
+                                x_right = x+right_count-1
+                                deltas.append([x_left, x_right])
 
                     else: 
                         ceiling = [img.item(0, x, 0), img.item(0, x, 1), img.item(0, x, 2)] 
@@ -514,11 +520,15 @@ class Camera:
                                 right_count = right_count + 1
                                 right_camera = [img.item(y-up_count, x+right_count, 0), img.item(y-up_count, x+right_count, 1), img.item(y-up_count, x+right_count, 2)] 
 
-                            if x+right_count-1 - x >= 3 and (x > x_right + 1 or x+right_count-1 < x_left - 1):
-                                x_left = x 
-                                x_right = x+right_count-1 
+                            if right_count >= 2:
+                                new = True
+                                for d in deltas: 
+                                    if (x < d[1] + 1 and x+right_count > d[0] - 1): new = False
                                 
-                                deltas.append([x_left, x_right])
+                                if new:
+                                    x_left = x
+                                    x_right = x+right_count-1
+                                    deltas.append([x_left, x_right])
 
                         elif topwall[x] == 0: 
                             topwall[x] = 1
@@ -535,36 +545,33 @@ class Camera:
         for d in deltas:
             [x_left, x_right] = d
             
-            if abs(topwall[x_right]-topwall[x_left]) < 5 and (topwall[x_right] > 1 or self.is_wall([hsv_img.item(0, x_right, 0), hsv_img.item(0, x_right, 1), hsv_img.item(0, x_right, 2)])):
+            if abs(topwall[x_right]-topwall[x_left]) <= 6 and (topwall[x_right] > 1 or self.is_wall([hsv_img.item(0, x_right, 0), hsv_img.item(0, x_right, 1), hsv_img.item(0, x_right, 2)])):
+                print("TOKEN ===", (x_left+x_right)/2, "============================")
                 #print("aqui", x_left, x_right)
                 #cv2.imwrite("possible_victim_" + str(tick_count) + ".png", img)
 
-                #img_angle = math.atan((-((x_left+x_right)/2)+128) * math.tan(3/2) / 128)
-                #for image in left and in right
                 if ((x_left+x_right)/2) <= 128: 
                     img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 63.5) + 0.75
                 if ((x_left+x_right)/2) > 128:
                     img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 63.5) - 0.75
                 
-                raio = round((math.pi-(img_angle))*256/math.pi)
-                raio = (raio+255) % 512
+                raio = round( ((math.pi-(img_angle))*256/math.pi) + 255.5 )
+                raio = raio % 512
 
                 dist = self.lidar.ray_front_dist(raio, current_tick)
-                #print("dist", dist)
-                #print("raio", raio)
+                print("raio", raio)
+                print("dist", dist)
                 #print("img angle", img_angle)
                 #print("ang total", self.gyro.last+img_angle)
 
-                if dist < 0.25:
+                if dist < 0.8:
                     a = self.gps.front[0] + dist * (math.cos(self.gyro.last+img_angle))
                     b = self.gps.front[1] + dist * (math.sin(self.gyro.last+img_angle))
 
-                    #print("coords", a, b)
+                    print("coords", a, b)
 
                     rd = 1
-
-                    if dist < 0.08:
-                        rd = 3
+                    if dist < 0.08: rd = 3
 
                     aux = 2*math.pi/512
 
@@ -577,43 +584,47 @@ class Camera:
                     ang_max = math.atan2(be-bd, ae-ad)
                     ang_min = math.atan2(bd-be, ad-ae)
                     
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-6+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+6*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-6+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+6*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+6)%512, current_tick) * (math.cos(self.gyro.last+img_angle-6*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+6)%512, current_tick) * (math.sin(self.gyro.last+img_angle-6*aux))
+                    rd = 3
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
 
-                    if (self.dist_coords([ae, be], [ad, bd]) < 0.05) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
-                        # sign = [[x_right-x_left], [pos], [left point pos], [right point pos]]
+                    print("coords left", ae, be)
+                    print("coords right", ad, bd)
+                    print("dist left", self.dist_coords([ae, be], [a, b]))
+                    print("dist right", self.dist_coords([a, b], [ad, bd]))
+                    print("dist left-right", self.dist_coords([ae, be], [ad, bd]))
 
-                        #print("wall angles", ang, ang_min, ang_max)
-                        #print(self.dist_coords([ae, be], [ad, bd]))
-
-                        cont = 0
+                    if (self.dist_coords([ae, be], [ad, bd]) < 0.06) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
                         vitima_igual = False
 
-                        #print("vai ver done")
                         for v in self.sign_colleted:
                             if (self.dist_coords([a, b], v[1]) < 0.033 and (abs(v[4][0]-ang_min) < math.pi/3 or 2*math.pi-abs(v[4][0]-ang_min) < math.pi/3)):
-                                #print("já pegou")
                                 vitima_igual = True
 
-                        #print("certo", len(self.sign_list))
+                        c = 0
                         for v in self.sign_list:
                             if self.dist_coords([a, b], v[1]) < 0.033:
-                                #print("vitima perto")
-                                if abs(v[4][0]-ang_min) < 0.3 or 2*math.pi-abs(v[4][0]-ang_min) < 0.3:
+                                if abs(v[4][0]-ang_min) < 0.6 or 2*math.pi-abs(v[4][0]-ang_min) < 0.6:
                                     if vitima_igual:
-                                        self.sign_list.pop(cont)
+                                        self.sign_list.pop(c)
                                     elif x_right - x_left >= v[0]:
-                                        self.sign_list[cont] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]]
-                                        #print("atualizei", a, b)
+                                        self.sign_list[c] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]]
                                     vitima_igual = True
-                            cont = cont + 1
+                            c = c + 1
 
-                        if not vitima_igual and ((abs(ang_max-ang) > 0.2 and abs(ang-ang_min) > 0.2) or dist < 0.8):
+                        
+                        if not vitima_igual and ((abs(ang-ang_min) > 0.2 and 2*math.pi-abs(ang-ang_min) > 0.2) and (abs(ang-ang_max) > 0.2 and 2*math.pi-abs(ang-ang_max) > 0.2) or dist < 0.24):
                             print("ADDED TOKEN", a, b)
                             self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]])
                             cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
+
+
+    def print_list(self):
+        for s in self.sign_list:
+            print("sign:")
+            print(s)
 
 
     def bfs_tile(self, hsv_img, xi, yi):
@@ -624,8 +635,7 @@ class Camera:
         values, diff_value = [hsv_img.item(yi, xi, 2)], 1
         min_top = 40
         ground = []
-        edges_l = []
-        edges_r = []
+        leftmost, rightmost, higher, lower = [0, 0], [0, 0], [0, 0], [0, 0]
 
         area = 0
         vis = np.zeros([256,40])
@@ -669,15 +679,12 @@ class Camera:
                 elif bot and left: ground.append([x+2, y-1])
                 elif bot and right: ground.append([x-2, y-1])
                 elif bot: ground.append([x, y-2])
-                        
-                if y == 0 or self.is_wall(top_hsv): top = True
-                if y == 39 or self.is_wall(bottom_hsv): bot = True
-                if x == 0 or self.is_wall(left_hsv): left = True
-                if x == 255 or self.is_wall(right_hsv): right = True
 
-                s = top + bot + left + right
-                if x == 127 or (s >= 1 and x < 127): edges_l.append([x, y])
-                if x == 128 or (s >= 1 and x > 128): edges_r.append([x, y])
+                coords = self.pixel_ground_position([x, y])
+                if coords[0] < leftmost[0]: leftmost = coords
+                if coords[0] > rightmost[0]: rightmost = coords
+                if coords[1] < higher[1]: higher = coords
+                if coords[1] > lower[1]: lower = coords
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
@@ -688,12 +695,7 @@ class Camera:
 
         if area == 10000: print("while quebrou")
 
-        centroid_l, centroid_r = [1000,1000], [1000,1000]
-        if area > 150:
-            if len(edges_l) > 0: centroid_l = self.centroid(edges_l)
-            if len(edges_r) > 0: centroid_r = self.centroid(edges_r)
-
-        return [centroid_l, centroid_r, min_top, diff_value, ground, img]
+        return [leftmost, rightmost, higher, lower, min_top, diff_value, ground, img]
 
 
     def pixel_ground_position(self, pos):
@@ -769,7 +771,7 @@ class Camera:
                 #print("colour", g_colour)
                 #cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
 
-                [centroid_l, centroid_r, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
+                [leftmost, rightmost, higher, lower, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
                 if self.is_obstacle(top, diff_value, ground, g_colour): 
                     #print("OBSTACLE")
@@ -781,14 +783,19 @@ class Camera:
                 #print("centroid left", centroid_l)
                 #print("centroid right", centroid_r)
 
-                [coord_X_l, coord_Y_l] = self.pixel_ground_position(centroid_l)
+                print("leftmost", leftmost)
+                print("rightmost", rightmost)
+                print("higher", higher)
+                print("lower", lower)
+
+                '''[coord_X_l, coord_Y_l] = self.pixel_ground_position(centroid_l)
                 [coord_X_r, coord_Y_r] = self.pixel_ground_position(centroid_r)
                 #print("coord left", [coord_X_l, coord_Y_l])
                 #print("coord right", [coord_X_r, coord_Y_r])
                 self.map.add_extra([coord_X_l, coord_Y_l], g_colour)
                 self.map.add_extra([coord_X_r, coord_Y_r], g_colour)
                 if g_colour == 'bh': self.map.add_obstacle([coord_X_l, coord_Y_l])
-                if g_colour == 'bh': self.map.add_obstacle([coord_X_r, coord_Y_r])
+                if g_colour == 'bh': self.map.add_obstacle([coord_X_r, coord_Y_r])'''
 
         return
 

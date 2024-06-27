@@ -37,8 +37,9 @@ class Sensors:
 
         if current_tick % 10 == 0 and self.camera.c_initial_tick == True:
             #self.camera.identify_token(self.camera.joint_image())
-            self.camera.update_token(current_tick)
-            #self.camera.update_ground()
+            #self.camera.update_token(current_tick)
+            self.camera.update_ground()
+            #self.camera.print_list()
 
         for i in range(-1, 2):
             for j in range(-1, 2):
