@@ -49,7 +49,7 @@ class Robot:
         elif self.calibration_timer < 10:
             self.navigation.speed(-2, -2)
         else:
-            self.sensors.update(self.current_tick)
+            self.sensors.update(self.current_tick, self.navigation.turning)
 
             self.navigation.speed(2, -2)
             self.c_total_gyro += min(abs(self.sensors.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.sensors.gyro.last-self.c_last_tick_gyro))
@@ -57,6 +57,7 @@ class Robot:
 
             if self.c_total_gyro > 2*math.pi:
                 self.calibrated = True
+
         return
 
 
@@ -71,7 +72,7 @@ class Robot:
             return
         
 
-        self.sensors.update(self.current_tick)
+        self.sensors.update(self.current_tick, self.navigation.turning)
 
 
         # Initial configuration
@@ -280,9 +281,9 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             else:
-                #self.run_simulation()
-                self.navigation.speed(0, 0)
-                self.sensors.update(self.current_tick)
+                self.run_simulation()
+                #self.navigation.speed(0, 0)
+                #self.sensors.update(self.current_tick, False)
             #if self.current_tick % 200 and self.current_tick > 50:
                 #print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
         return

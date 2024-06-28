@@ -557,7 +557,7 @@ class Camera:
             [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
 
             dist = self.dist_coords(self.gps.front, [coordX, coordY])
-            if dist < 0.7:
+            if dist < 0.25:
                 d = int(dist/0.02) if int(dist/0.02) > 0 else 1
                 for i in range(d): 
                     [x, y] = [(i*self.gps.front[0]+(d-1-i)*coordX)/19, (i*self.gps.front[1]+(d-1-i)*coordY)/19]
@@ -743,13 +743,13 @@ class Camera:
 
     def pixel_ground_position(self, pos):
         [x, y] = pos
-        if x == 1000 or y <= 19: return [1000, 1000]
+        #if x == 1000 or y <= 19: return [1000, 1000]
 
         horizontal_fov = 1.5
         vertical_fov = 0.566587633
 
-        angle_Y = math.atan((y-19.5) * math.tan(vertical_fov/2) / 19.5)
-        d_min = 0.0303/math.tan(angle_Y)
+        tan_angle_Y = (y-19.5) * math.tan(vertical_fov/2) / 19.5
+        d_min = 0.03/tan_angle_Y
 
         #if d_min > 0.28: return [1000, 1000]
 
@@ -823,8 +823,9 @@ class Camera:
                 elif bot: ground.append([x, y-2])
 
                 coords = self.pixel_ground_position([x, y])
+                dist = self.dist_coords(self.gps.last, coords)
 
-                if coords != [1000, 1000]:
+                if coords != [1000, 1000] and dist < 0.25:
                     a, b = int(coords[0] / 0.06), int(coords[1] / 0.06)
                     if a != 0: a = int((a+(a/abs(a)))/2)
                     if b != 0: b = int((b+(b/abs(b)))/2)
@@ -832,9 +833,17 @@ class Camera:
                     minx, miny = a*0.12-0.06, b*0.12-0.06
                     maxx, maxy = a*0.12+0.06, b*0.12+0.06
 
-                    if abs(coords[0]-minx) > 0.02 and abs(coords[0]-maxx) > 0.02 and abs(coords[1]-miny) > 0.02 and abs(coords[1]-maxy) > 0.02:
+                    if dist < 0.15: border = 0.015
+                    else: border = 0.4
+
+                    if abs(coords[0]-minx) > border and abs(coords[0]-maxx) > border and abs(coords[1]-miny) > border and abs(coords[1]-maxy) > border:
                         if all([a*0.12, b*0.12] != x for x in tiles): 
-                            if colour != 'ob': cv2.imwrite("added" + str(a) + "_" + str(b) + "_" + colour + ".png", hsv_img)
+                            if colour != 'ob': 
+                                cv2.imwrite("added" + str(a) + "_" + str(b) + "_" + colour + ".png", hsv_img)
+                                print(a*0.12, b*0.12)
+                                print(x, y)
+                                print("coords", coords)
+                                print("dist", dist)
                             tiles.append([a*0.12, b*0.12])
 
                 queue.append([x+1, y])
@@ -876,22 +885,20 @@ class Camera:
     def update_ground(self):
         img, hsv_img = self.joint_image()
 
-        cv2.imwrite("0_image.png", hsv_img)
-
-        #print("Start ==========================")
-
         for x in range(0, 256):
             if self.is_wall([hsv_img.item(0, x, 0), hsv_img.item(0, x, 1), hsv_img.item(0, x, 2)]): continue 
-            for y in range(39, 18, -1):
+            for y in range(39, 0, -1):
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)] 
                 g_colour = self.identify_colour(colour_hsv)
 
                 if self.is_wall(colour_hsv): break
                 if self.is_blank_ground(colour_hsv): continue
 
+                cv2.imwrite("current.png", img)
+
                 print("TEM COISA", x, y, "----------------------------")
                 print("colour", g_colour)
-                #cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
+                print("pos", self.gps.last)
 
                 [tiles, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
@@ -911,7 +918,8 @@ class Camera:
                             miny, maxy = t[1]-0.03, t[1]+0.03
                             coord = [((2-i)*minx+i*maxx)/2, ((2-j)*miny+j*maxy)/2]
                             self.map.add_extra(coord, g_colour)
-
+                            if g_colour == 'bh': self.map.add_obstacle(coord)
+                
         return
 
     

@@ -17,6 +17,7 @@ class Navigation:
         self.explored = False
         self.collecting = False
         self.walk_collect = False
+        self.turning = True
         self.ending = False
         self.action_list = []
         self.last_walk = [[0,0], self.sensors.gps.last]
@@ -58,13 +59,16 @@ class Navigation:
         delta_angle = ang-self.sensors.gyro.last
 
         if abs(delta_angle) >= 0.04:
+            self.turning = True
+
             while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
             while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
 
             if delta_angle >= 0: self.speed(-self.turn_velocity, self.turn_velocity)
             else: self.speed(self.turn_velocity, -self.turn_velocity)
-        
         else:
+            self.turning = False
+
             if self.dist_coords(self.sensors.gps.last, point) > 0.003:
                 self.speed(self.velocity, self.velocity)
             else:

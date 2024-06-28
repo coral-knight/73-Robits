@@ -27,23 +27,6 @@
 		"a": 1.57,
 		"custom": []
 	},
-	"camera2": {
-		"dictName": "camera2",
-		"name": "Camera",
-		"customName": "camera1",
-		"type": "add",
-		"x": 0,
-		"y": 120,
-		"z": -328,
-		"rx": -0.3,
-		"ry": 0.68,
-		"rz": 0.67,
-		"a": 2.58,
-		"custom": [
-			128,
-			40
-		]
-	},
 	"gyro": {
 		"dictName": "gyro",
 		"name": "Gyro",
@@ -85,6 +68,23 @@
 		"rz": 0.58,
 		"a": 2.09,
 		"custom": []
+	},
+	"camera2": {
+		"dictName": "camera2",
+		"name": "Camera",
+		"customName": "camera1",
+		"type": "add",
+		"x": 0,
+		"y": 120,
+		"z": -328,
+		"rx": -0.29,
+		"ry": 0.68,
+		"rz": 0.68,
+		"a": 2.57,
+		"custom": [
+			128,
+			40
+		]
 	},
 	"camera3": {
 		"dictName": "camera3",
