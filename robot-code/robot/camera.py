@@ -17,11 +17,11 @@ class Camera:
 
         # Hardware
         self.camera_left = self.hardware.getDevice("camera1")
-        self.camera_left.enable(self.time_step*5)
+        self.camera_left.enable(self.time_step)
         self.camera_left.setFov(1.5)
         
         self.camera_right = self.hardware.getDevice("camera2")
-        self.camera_right.enable(self.time_step*5)
+        self.camera_right.enable(self.time_step)
         self.camera_right.setFov(1.5)
 
         # Variables
@@ -777,7 +777,7 @@ class Camera:
         values, diff_value = [hsv_img.item(yi, xi, 2)], 1
         min_top = 40
         ground = []
-        leftmost, rightmost, higher, lower = [1000, 0], [-1000, 0], [0, -1000], [0, 1000]
+        tiles = []
 
         area = 0
         vis = np.zeros([256,40])
@@ -823,11 +823,19 @@ class Camera:
                 elif bot: ground.append([x, y-2])
 
                 coords = self.pixel_ground_position([x, y])
+
                 if coords != [1000, 1000]:
-                    if coords[0] < leftmost[0]: leftmost = coords
-                    if coords[0] > rightmost[0]: rightmost = coords
-                    if coords[1] > higher[1]: higher = coords
-                    if coords[1] < lower[1]: lower = coords
+                    a, b = int(coords[0] / 0.06), int(coords[1] / 0.06)
+                    if a != 0: a = int((a+(a/abs(a)))/2)
+                    if b != 0: b = int((b+(b/abs(b)))/2)
+
+                    minx, miny = a*0.12-0.06, b*0.12-0.06
+                    maxx, maxy = a*0.12+0.06, b*0.12+0.06
+
+                    if abs(coords[0]-minx) > 0.02 and abs(coords[0]-maxx) > 0.02 and abs(coords[1]-miny) > 0.02 and abs(coords[1]-maxy) > 0.02:
+                        if all([a*0.12, b*0.12] != x for x in tiles): 
+                            if colour != 'ob': cv2.imwrite("added" + str(a) + "_" + str(b) + "_" + colour + ".png", hsv_img)
+                            tiles.append([a*0.12, b*0.12])
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
@@ -838,9 +846,7 @@ class Camera:
 
         if area == 10000: print("while quebrou")
 
-        #if area < 150: leftmost, rightmost, higher, lower = [1000, 1000], [1000, 1000], [1000, 1000], [1000, 1000]
-
-        return [leftmost, rightmost, higher, lower, min_top, diff_value, ground, img]
+        return [tiles, min_top, diff_value, ground, img]
 
 
     def is_obstacle(self, top, diff_value, ground, colour):
@@ -887,7 +893,7 @@ class Camera:
                 print("colour", g_colour)
                 #cv2.imwrite("ground_" + str(g_colour) + "_" + str(x) + "_" + str(y) + ".png", hsv_img) 
 
-                [leftmost, rightmost, higher, lower, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
+                [tiles, top, diff_value, ground, hsv_img] = self.bfs_tile(hsv_img, x, y)
 
                 if self.is_obstacle(top, diff_value, ground, g_colour): 
                     print("OBSTACLE")
@@ -896,22 +902,15 @@ class Camera:
 
                 if g_colour == 'N': continue
 
-                #print("centroid left", centroid_l)
-                #print("centroid right", centroid_r)
+                print("tiles", tiles)
 
-                print("leftmost", leftmost)
-                print("rightmost", rightmost)
-                print("higher", higher)
-                print("lower", lower)
-
-                '''[coord_X_l, coord_Y_l] = self.pixel_ground_position(centroid_l)
-                [coord_X_r, coord_Y_r] = self.pixel_ground_position(centroid_r)
-                #print("coord left", [coord_X_l, coord_Y_l])
-                #print("coord right", [coord_X_r, coord_Y_r])
-                self.map.add_extra([coord_X_l, coord_Y_l], g_colour)
-                self.map.add_extra([coord_X_r, coord_Y_r], g_colour)
-                if g_colour == 'bh': self.map.add_obstacle([coord_X_l, coord_Y_l])
-                if g_colour == 'bh': self.map.add_obstacle([coord_X_r, coord_Y_r])'''
+                for t in tiles:
+                    for i in range(3):
+                        for j in range(3):
+                            minx, maxx = t[0]-0.03, t[0]+0.03
+                            miny, maxy = t[1]-0.03, t[1]+0.03
+                            coord = [((2-i)*minx+i*maxx)/2, ((2-j)*miny+j*maxy)/2]
+                            self.map.add_extra(coord, g_colour)
 
         return
 

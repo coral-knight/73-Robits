@@ -1,4 +1,6 @@
 import math
+import numpy as np
+import cv2
 #from robot.distance import Distance
 from robot.lidar import Lidar
 from robot.camera import Camera
@@ -22,13 +24,15 @@ class Sensors:
         self.lidar = Lidar(self.hardware, self.time_step, self.map, self.gps, self.gyro)
         self.camera = Camera(self.hardware, self.time_step, self.emitter, self.gps, self.gyro, self.lidar, self.map)
 
+        self.last_image = [[[0,0,0]], [[0,0,0]]]
+
 
     def update(self, current_tick):
         self.emitter.update()
         self.receiver.update()
 
-        self.gps.update()
         self.gyro.update()
+        self.gps.update()
         #self.distance.update()
 
         if current_tick % 10 == 0 and max(abs(self.gyro.last_front), abs(self.gyro.last_side)) < 0.3:
@@ -36,10 +40,10 @@ class Sensors:
             self.camera.seen(current_tick)
 
         if current_tick % 10 == 0 and self.camera.c_initial_tick == True:
-            self.camera.identify_token(self.camera.joint_image(), "left")
+            #self.camera.identify_token(self.camera.joint_image(), "left")
             #self.camera.update_token(current_tick)
-            #self.camera.update_ground()
-            #self.camera.print_list()
+            self.camera.update_ground()
+            #self.camera.print_list()        
 
         for i in range(-1, 2):
             for j in range(-1, 2):
