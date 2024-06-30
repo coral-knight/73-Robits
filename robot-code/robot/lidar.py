@@ -60,7 +60,7 @@ class Lidar:
 
             # Conditions to mark wall
             if self.dist_coords(self.gps.last, [coordX, coordY]) < 0.98:
-                if (dist_ap < 0.04) and (dist_ant < 0.01) and (dist_prox < 0.01):
+                if (dist_ap < 0.04) and (dist_ant < 0.02) and (dist_prox < 0.02):
 
                     # Get the bottom of the cone if it appears on 3 layers of ray
                     if (i > 384 or i < 128) and abs(coordZ_3 - (-0.066)) > 0.006 and self.dist_coords(self.gps.last, [coordX_3, coordY_3]) < 0.3:

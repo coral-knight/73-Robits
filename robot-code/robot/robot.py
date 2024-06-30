@@ -141,39 +141,122 @@ class Robot:
 
         # Find a new point on the RRTs to go 
         if not self.navigation.explored and not self.navigation.collecting and not self.navigation.exploring:
-            self.navigation.speed(0, 0)
             print("------------------------------------")
+            print("FIND NEW POINT")
 
-            #self.global_rrt.update(self.sensors.gps.last, 1)
+            self.navigation.speed(0, 0)
 
-            print("new RRT")
+            self.global_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
+            self.global_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])
 
-            local_rrt = RRTStar(self.map, self.sensors.gps.last)
+            # Add forward points
+            angles = []
+            forward = []
+            for i in range(-10, 11): angles.append(self.sensors.gyro.last + i * math.pi/20)
+            angles.sort(key = lambda a : abs(a))
+            for c in range(len(angles)):
+                if c % 2 == 1 and len(forward) > 0: break
 
-            local_unexplored = []
-            global_unexplored = []
+                path_angle = angles[c]
+                print(path_angle)
+                coordX = self.sensors.gps.last[0] + 0.7 * math.cos(path_angle)
+                coordY = self.sensors.gps.last[1] + 0.7 * math.sin(path_angle)
 
-            cont = 0
-            while len(local_unexplored) == 0 and len(global_unexplored) == 0 and cont < 250:
-                cont += 1
-                _, local_unexplored = local_rrt.explore(10)
-                _, global_unexplored = self.global_rrt.explore(1)
-                
+                d = int(0.7/0.02) if int(0.7/0.02) > 0 else 1
 
-            if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
-                print("TERMINOU DE EXPLORAR")
-                self.navigation.explored = True
+                br = False
+                for i in range(d+1): 
+                    if br: break
+                    [x, y] = [((d-i)*self.sensors.gps.last[0]+i*coordX)/d, ((d-i)*self.sensors.gps.last[1]+i*coordY)/d]
+                    print([x, y])
 
-            elif len(local_unexplored) > 0:
-                print("found LOCAL unexplored")
+                    information_gain = 0
+                    map_p = self.map.real_to_map([x, y])
+                    if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1):
+                        for a in range(map_p[0]-1, map_p[0]+2):
+                            for b in range(map_p[1]-1, map_p[1]+2):
+                                if a >= 0 and a < np.size(self.map.map, 0) and b >= 0 and b < np.size(self.map.map, 1):
+                                    for v in self.map.map[a, b]:
+                                        if v != 0 and self.dist_coords([x, y], v) < 0.037: br = True
+                                    if self.map.seen_map[map_p[0], map_p[1]] == 0 and self.map.seen_map[a, b] == 0: 
+                                        information_gain += 1
+
+                    if br: break
+                    if information_gain > 0:
+                        print("inexplorado forward", [x, y], path_angle)
+                        print("information gain", information_gain)
+
+                        forward.append([[x, y], information_gain]) 
+
+                        break
+
+            if len(forward) > 0:
+                best = [[0, 0], -1000]
+                for un in forward:
+                    print("possible", un)
+                    navigation_cost = self.dist_coords(self.sensors.gps.last, un[0])
+                    revenue = un[1]*0.0036 - navigation_cost
+                    if revenue > best[1]: best = [un[0], revenue]   
+
+                self.navigation.exploring = True
+                self.navigation.append_list(best[0], 0)
+
+            else:
+                print("RRT START")
+
+                local_rrt = RRTStar(self.map, self.sensors.gps.last)
+                self.global_rrt.update_unexplored()
+
+                local_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
+                local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])    
+
+                local_unexplored = []
+                global_unexplored = self.global_rrt.unexplored
+
+                cont = 0
+                while cont < 1000 and (cont < 500 or len(global_unexplored) == 0):
+                    if len(local_unexplored) >= 3: break
+                    if not all(self.dist_coords(self.sensors.gps.last, l[0]) > 0.24 for l in local_unexplored): break
+                    
+                    cont += 1
+                    _, local_unexplored = local_rrt.explore(3)
+                    _, global_unexplored = self.global_rrt.explore(1)
+                    
                 print("cont", cont)
-                print(local_unexplored[0])
-                self.navigation.solve([local_unexplored[0], local_rrt.real_to_pos(local_unexplored[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
+                print("len local", len(local_unexplored))
+                print("len global", len(global_unexplored))
 
-            elif len(global_unexplored) > 0:
-                print("found GLOBAL unexplored")
-                print(global_unexplored[0])
-                self.navigation.solve([global_unexplored[0], self.global_rrt.real_to_pos(global_unexplored[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
+                if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
+                    print("TERMINOU DE EXPLORAR")
+                    self.navigation.explored = True
+                    local_rrt.print()
+                    self.global_rrt.print()
+
+                elif len(local_unexplored) > 0:
+                    print("found LOCAL unexplored")
+                    local_rrt.print()
+
+                    best = [[0, 0], -1000]
+                    for un in local_unexplored:
+                        print("possible", un)
+                        navigation_cost = self.dist_coords(self.sensors.gps.last, un[0])
+                        revenue = un[1]*0.0036 - navigation_cost
+                        if revenue > best[1]: best = [un[0], revenue]
+
+                    self.navigation.solve([best[0], local_rrt.real_to_pos(best[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
+
+                elif len(global_unexplored) > 0:
+                    print("found GLOBAL unexplored")
+                    local_rrt.print()
+                    
+                    best = [[0, 0], -1000]
+                    for un in global_unexplored:
+                        print("possible", un)
+                        navigation_cost = self.dist_coords(self.sensors.gps.last, un[0])
+                        revenue = un[1]*0.0036 - navigation_cost
+                        if revenue > best[1]: best = [un[0], revenue]
+
+                    self.navigation.solve([best[0], self.global_rrt.real_to_pos(best[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
 
 
         # Go to marked tokens, and then spawn
@@ -211,7 +294,7 @@ class Robot:
 
                     cont = 0
                     parent, _ = self.global_rrt.closest_point([x, y], 1)
-                    while parent == [1000,1000] and cont < 1000:
+                    while parent == [1000,1000] and cont < 2000:
                         cont += 1
                         new, _ = self.global_rrt.explore(1)
                         if len(new) > 0 and not self.global_rrt.wall_between([x, y], new[0]): parent = new[0]

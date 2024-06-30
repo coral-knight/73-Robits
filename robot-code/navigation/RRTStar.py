@@ -27,6 +27,8 @@ class RRTStar:
         self.initial_center_pos = self.map_to_real(self.real_to_map(pos))
         self.cur_tile = [self.real_to_map(pos), 1]
 
+        self.unexplored = []
+
 
     def graph_expand(self, point):
         if point[0] < (self.range_x[0]+self.resolution):
@@ -280,32 +282,54 @@ class RRTStar:
         return 
 
 
+    def update_unexplored(self):
+        for un in self.unexplored:
+            map_p = self.map.real_to_map(un[0])
+            information_gain = 0
+            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] == 0:
+                for x in range(map_p[0]-1, map_p[0]+2):
+                    for y in range(map_p[1]-1, map_p[1]+2):
+                        if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1):
+                            if self.map.seen_map[x, y] == 0: information_gain += 1
+
+            un[1] = information_gain
+            if information_gain == 0: self.unexplored.remove(un)
+
+        return
+
+
     def explore(self, ticks):
         # Generate and find unexplored nodes to the navigation
 
         new = []
-        unexplored = []
-        self.graph_expand([self.map.range_x[0], self.map.range_y[0]])
-        self.graph_expand([self.map.range_x[1], self.map.range_y[1]])
 
         while ticks > 0:
             ticks -= 1
-
+            
             point = self.random_point()
             closest = self.closest_point(point, 0)[0]
+            if not all(self.dist_coords(closest, u[0]) > 0.06 for u in self.unexplored): continue
             point = self.project_point(point, closest)
             parent, pos = self.add_graph(point)
             if parent == [1000, 1000]: continue
 
             map_p = self.map.real_to_map(point)
-            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1):
-                if self.map.seen_map[map_p[0], map_p[1]] == 0:
-                    print("inexplorado", point, pos, parent)
-                    unexplored.append(point) # [ponto (coordenada), posição]
+            information_gain = 0
+            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] == 0:
+                for x in range(map_p[0]-1, map_p[0]+2):
+                    for y in range(map_p[1]-1, map_p[1]+2):
+                        if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1):
+                            if self.map.seen_map[x, y] == 0: information_gain += 1
+
+            if information_gain > 0:
+                print("inexplorado", point, parent)
+                print("information gain", information_gain)
+
+                self.unexplored.append([point, information_gain]) 
                 
             new.append(point)
 
-        return new, unexplored
+        return new, self.unexplored
     
 
     def print(self):

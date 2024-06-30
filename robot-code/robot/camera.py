@@ -546,25 +546,25 @@ class Camera:
 
 
     def seen(self, current_tick):
-        ray_left = round((math.pi-(1.5))*256/math.pi)
-        ray_left = (ray_left+255) % 512 + 5
+        ray_left = round((math.pi-(1.2))*256/math.pi + 255.5)
+        ray_left = ray_left % 512
 
-        ray_right = round((math.pi+(1.5))*256/math.pi)
-        ray_right = (ray_right+255) % 512 - 5
+        ray_right = round((math.pi+(1.2))*256/math.pi + 255.5)
+        ray_right = ray_right % 512
 
         ray = ray_left
         while ray != ray_right:
             [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
 
             dist = self.dist_coords(self.gps.front, [coordX, coordY])
-            if dist < 0.25:
+            if dist < 0.4:
                 d = int(dist/0.02) if int(dist/0.02) > 0 else 1
-                for i in range(d): 
-                    [x, y] = [(i*self.gps.front[0]+(d-1-i)*coordX)/19, (i*self.gps.front[1]+(d-1-i)*coordY)/19]
+                for i in range(d+1): 
+                    [x, y] = [((d-i)*self.gps.front[0]+i*coordX)/d, ((d-i)*self.gps.front[1]+i*coordY)/d]
                     if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
                         self.map.seen([x, y])
                     else:
-                        break
+                        continue
 
             ray += 1
             if ray == 512: ray = 0
