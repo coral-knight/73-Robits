@@ -184,7 +184,7 @@ class Navigation:
         return
     
     
-    def solve(self, unexplored, graph, last):
+    def solve(self, unexplored, graph, last, arg):
         print("solve para", unexplored)
         print("last", last)
         self.exploring = True
@@ -205,7 +205,7 @@ class Navigation:
         print(level, unlevel)
 
         a = 0
-        while level > unlevel and a < 1000:
+        while level > unlevel and a < 2000:
             pos = self.graph_parent(graph, pos) # Graph position of the parent
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordinates of the parent
 
@@ -215,10 +215,10 @@ class Navigation:
             level -= 1
 
             a += 1
-        if a == 1000: print("WHILE WALK_LIST")
+        if a == 2000: print("WHILE WALK_LIST")
 
         b = 0
-        while unlevel > level and b < 1000:
+        while unlevel > level and b < 2000:
             print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
@@ -228,12 +228,12 @@ class Navigation:
             unlevel -= 1
 
             b += 1
-        if b == 1000: print("WHILE UNWALK_LIST")
+        if b == 2000: print("WHILE UNWALK_LIST")
 
         print("level igual")
 
         cont = 0
-        while point != unpoint and cont < 1000:
+        while point != unpoint and cont < 2000:
             print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
@@ -247,17 +247,21 @@ class Navigation:
             walk_list.insert(0, point)
 
             cont += 1
-        if cont == 1000: print("WHILE TOGETHER SOLVE")
+        if cont == 2000: print("WHILE TOGETHER SOLVE")
 
-        print("walk do unexplored")
-        for w in unwalk_list:
-            print(w)
 
         print("walk do atual")
         for w in walk_list:
             print(w)
 
+        print("walk do unexplored")
+        for w in unwalk_list:
+            print(w)
+
         #walk_list = unwalk_list + walk_list
+
+        if arg == "end_collect" or arg == "end": a = 1
+        else: a = 0
 
         ini = len(self.action_list)
         self.append_list(self.sensors.gps.last, 1)
@@ -265,7 +269,7 @@ class Navigation:
             self.append_list(walk_list[i], 1)
 
         for i in range(len(unwalk_list)-1, -1, -1):
-            self.append_list(unwalk_list[i], 0)
+            self.append_list(unwalk_list[i], a)
 
         self.path_smoothing(ini)
 

@@ -215,12 +215,12 @@ class Robot:
 
                 cont = 0
                 while cont < 1000 and (cont < 500 or len(global_unexplored) == 0):
-                    if len(local_unexplored) >= 3: break
+                    if len(local_unexplored) >= 1: break
                     if not all(self.dist_coords(self.sensors.gps.last, l[0]) > 0.24 for l in local_unexplored): break
                     
                     cont += 1
-                    _, local_unexplored = local_rrt.explore(3)
-                    _, global_unexplored = self.global_rrt.explore(1)
+                    _, local_unexplored = local_rrt.explore(3, self.sensors.gps.last, cont)
+                    _, global_unexplored = self.global_rrt.explore(1, [0,0], 1000)
                     
                 print("cont", cont)
                 print("len local", len(local_unexplored))
@@ -243,7 +243,7 @@ class Robot:
                         revenue = un[1]*0.0036 - navigation_cost
                         if revenue > best[1]: best = [un[0], revenue]
 
-                    self.navigation.solve([best[0], local_rrt.real_to_pos(best[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)])
+                    self.navigation.solve([best[0], local_rrt.real_to_pos(best[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)], "explore")
 
                 elif len(global_unexplored) > 0:
                     print("found GLOBAL unexplored")
@@ -256,7 +256,7 @@ class Robot:
                         revenue = un[1]*0.0036 - navigation_cost
                         if revenue > best[1]: best = [un[0], revenue]
 
-                    self.navigation.solve([best[0], self.global_rrt.real_to_pos(best[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)])
+                    self.navigation.solve([best[0], self.global_rrt.real_to_pos(best[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)], "explore")
 
 
         # Go to marked tokens, and then spawn
@@ -279,14 +279,14 @@ class Robot:
                     w2 = [-1*w[0], -1*w[1]]
                     uw2 = [-1*w2[1], w2[0]]
 
-                    x = u[0] * (0.045 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
-                    y = u[1] * (0.045 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
+                    x = u[0] * (0.055 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
+                    y = u[1] * (0.055 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
 
-                    x_right = uw[0] * (0.045 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
-                    y_right = uw[1] * (0.045 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
+                    x_right = uw[0] * (0.055 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
+                    y_right = uw[1] * (0.055 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
 
-                    x_left = uw2[0] * (0.045 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
-                    y_left = uw2[1] * (0.045 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
+                    x_left = uw2[0] * (0.055 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
+                    y_left = uw2[1] * (0.055 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
 
                     if self.no_obstacle([x, y]): x, y = x, y
                     elif self.no_obstacle([x_right, y_right]): x, y = x_right, y_right
@@ -300,10 +300,10 @@ class Robot:
                         if len(new) > 0 and not self.global_rrt.wall_between([x, y], new[0]): parent = new[0]
 
                     print("achou ponto", cont)
-                    if cont == 1000: 
+                    if cont == 2000: 
                         print("n pode ir para", [a, b])
                         self.sensors.camera.sign_list.remove(sign)
-                    if cont < 1000: 
+                    if cont < 2000: 
                         self.global_rrt.connect([x, y], parent)
                         walk_token.append([x, y])
 
@@ -311,11 +311,11 @@ class Robot:
                 for w in walk_token:
                     print("from", current_pos, "to", w)
                     end = len(self.navigation.action_list)-1
-                    self.navigation.solve([w, self.global_rrt.real_to_pos(w)], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)])
+                    self.navigation.solve([w, self.global_rrt.real_to_pos(w)], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)], "end_collect")
                     self.navigation.append_list(w, 2)
                     current_pos = w
             else:
-                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile])
+                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile], "end")
 
 
         # Navigate
