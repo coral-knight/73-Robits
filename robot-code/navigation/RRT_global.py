@@ -3,7 +3,7 @@ import random
 import numpy as np
 generator = np.random.default_rng()
 
-class RRTStar:
+class RRTGlobal:
 
     def __init__(self, map, pos):
         self.map = map 
@@ -104,51 +104,13 @@ class RRTStar:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
-    def random_point(self, gps, total):
-        ang_cont = 100
-        dist_cont = 500
+    def random_point(self):
+        random.seed()
+        x_percent = random.random()
+        y_percent = random.random()
 
-        range_max = self.dist_coords([self.map.range_x[1], self.map.range_y[1]], [self.map.range_x[0], self.map.range_y[0]]) + 0.24
-
-        if total < ang_cont:
-            angle_sigma = ((ang_cont-total) * 1 + total * 3) / ang_cont
-            angle = generator.normal(0, angle_sigma)
-
-            #dist_sigma = ((ang_max-total) * 0.04 + total * 2) / ang_max
-            #dist = 0
-            #while dist <= 0.04: dist = generator.normal(0.1, dist_sigma)
-
-            dist_percent = generator.random()
-            dist = 0 * dist_percent + range_max * (1-dist_percent)
-
-            print("random angle", angle)
-            #print("random dist", dist)
-
-            x = gps[0] + dist * math.cos(angle)
-            y = gps[1] + dist * math.sin(angle)
-
-        elif total < dist_cont:
-            angle_percent = generator.random()
-            angle = 0 * angle_percent + 3.14 * (1-angle_percent)
-
-            dist_max = ((dist_cont-(total-ang_cont)) * 0.06 + (total-ang_cont) * range_max) / dist_cont
-            dist_percent = generator.random()
-            dist = 0 * dist_percent + dist_max * (1-dist_percent)
-
-            print("max dist", dist_max)
-
-            x = gps[0] + dist * math.cos(angle)
-            y = gps[1] + dist * math.sin(angle)
-
-            print("dist point", [x, y])
-
-        if gps == [1000, 1000] or (total >= ang_cont and total >= dist_cont):
-            random.seed()
-            x_percent = random.random()
-            y_percent = random.random()
-
-            x = self.range_x[0]*x_percent + self.range_x[1]*(1-x_percent)
-            y = self.range_y[0]*y_percent + self.range_y[1]*(1-y_percent)
+        x = self.range_x[0]*x_percent + self.range_x[1]*(1-x_percent)
+        y = self.range_y[0]*y_percent + self.range_y[1]*(1-y_percent)
 
         self.graph_expand([x, y])
         return [x, y]
@@ -341,7 +303,7 @@ class RRTStar:
         return
 
 
-    def explore(self, ticks, gps, total):
+    def explore(self, ticks):
         # Generate and find unexplored nodes to the navigation
 
         new = []
@@ -349,7 +311,7 @@ class RRTStar:
         while ticks > 0:
             ticks -= 1
             
-            point = self.random_point(gps, total)
+            point = self.random_point()
             closest = self.closest_point(point, 0)[0]
             if self.dist_coords(point, closest) < 0.02 or not all(self.dist_coords(closest, u[0]) > 0.06 for u in self.unexplored): continue
             point = self.project_point(point, closest)

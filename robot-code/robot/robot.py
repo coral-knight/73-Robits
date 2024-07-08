@@ -1,7 +1,8 @@
 from controller import Robot as Hardware
 from robot.sensors import Sensors
 from mapping.map import Map
-from navigation.RRTStar import RRTStar
+from navigation.RRT_global import RRTGlobal
+from navigation.RRT_local import RRTLocal
 from navigation.navigation import Navigation
 import numpy as np
 import math
@@ -78,7 +79,7 @@ class Robot:
         # Initial configuration
         if self.current_tick == self.calibration_timer+1:
             self.navigation.speed(0,0)
-            self.global_rrt = RRTStar(self.map, self.sensors.gps.last)
+            self.global_rrt = RRTGlobal(self.map, self.sensors.gps.last)
             return
 
 
@@ -204,11 +205,11 @@ class Robot:
             else:
                 print("RRT START")
 
-                local_rrt = RRTStar(self.map, self.sensors.gps.last)
+                local_rrt = RRTLocal(self.map, self.sensors.gps.last)
                 self.global_rrt.update_unexplored()
 
                 local_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
-                local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])    
+                local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])      
 
                 local_unexplored = []
                 global_unexplored = self.global_rrt.unexplored
@@ -219,8 +220,8 @@ class Robot:
                     if not all(self.dist_coords(self.sensors.gps.last, l[0]) > 0.24 for l in local_unexplored): break
                     
                     cont += 1
-                    _, local_unexplored = local_rrt.explore(3, self.sensors.gps.last, cont)
-                    _, global_unexplored = self.global_rrt.explore(1, [0,0], 1000)
+                    _, local_unexplored = local_rrt.explore(3)
+                    _, global_unexplored = self.global_rrt.explore(1)
                     
                 print("cont", cont)
                 print("len local", len(local_unexplored))
@@ -407,7 +408,7 @@ class Robot:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.035:
+                            if v != 0 and self.dist_coords(p, v) < 0.036:
                                 print("parede", v, self.dist_coords(p, v))
                                 return True
                 
