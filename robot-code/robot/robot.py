@@ -83,7 +83,7 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        '''if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
+        if self.current_tick % 20 == 0 and not self.navigation.explored and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
@@ -134,7 +134,7 @@ class Robot:
                         print("sem parede")
                         self.navigation.exploring = True
                         self.navigation.append_list([x, y], 2)
-                        break'''
+                        break
 
 
         # Find a new point on the RRTs to go 

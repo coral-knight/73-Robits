@@ -55,12 +55,12 @@ class Navigation:
     def walk_to(self, point, arg):
         ang = math.atan2(point[1]-self.sensors.gps.last[1], point[0]-self.sensors.gps.last[0])
         delta_angle = ang-self.sensors.gyro.last
+        while delta_angle < -math.pi: delta_angle += 2*math.pi
+        while delta_angle > math.pi: delta_angle -= 2*math.pi
 
         if abs(delta_angle) >= 0.05:
             self.turning = True
-
-            while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
-            while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
+            print("aqui mesmo", delta_angle)
 
             if delta_angle >= 0: self.speed(-self.turn_velocity, self.turn_velocity)
             else: self.speed(self.turn_velocity, -self.turn_velocity)

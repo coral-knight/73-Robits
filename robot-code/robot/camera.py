@@ -102,12 +102,12 @@ class Camera:
                 ang = math.atan2(self.sign_list[self.c_id][1][1]-self.gps.front[1], self.sign_list[self.c_id][1][0]-self.gps.front[0])
 
                 delta_angle_left = ang-(self.gyro.last+0.75+0.25)
-                while delta_angle_left < -math.pi: delta_angle_left = delta_angle_left + 2*math.pi
-                while delta_angle_left > math.pi: delta_angle_left = delta_angle_left - 2*math.pi
+                while delta_angle_left < -math.pi: delta_angle_left += 2*math.pi
+                while delta_angle_left > math.pi: delta_angle_left -= 2*math.pi
 
                 delta_angle_right = ang-(self.gyro.last-0.75-0.25)
-                while delta_angle_right < -math.pi: delta_angle_right = delta_angle_right + 2*math.pi
-                while delta_angle_right> math.pi: delta_angle_right = delta_angle_right - 2*math.pi
+                while delta_angle_right < -math.pi: delta_angle_right += 2*math.pi
+                while delta_angle_right > math.pi: delta_angle_right -= 2*math.pi
 
                 if self.c_side == "none":
                     if abs(delta_angle_left) <= abs(delta_angle_right): self.c_side = "left"
@@ -187,13 +187,12 @@ class Camera:
             elif not self.c_found_center:
                 ang = math.atan2(self.sign_list[self.c_id][1][1]-self.gps.last[1], self.sign_list[self.c_id][1][0]-self.gps.last[0])
                 delta_angle = ang-self.gyro.last
+                while delta_angle < -math.pi: delta_angle += 2*math.pi
+                while delta_angle > math.pi: delta_angle -= 2*math.pi
 
                 print("turning to token center", delta_angle)
 
                 if abs(delta_angle) >= 0.02:
-                    while delta_angle < -math.pi: delta_angle = delta_angle + 2*math.pi
-                    while delta_angle > math.pi: delta_angle = delta_angle - 2*math.pi
-
                     if delta_angle >= 0: navigation.speed(-self.c_turn_velocity, self.c_turn_velocity)
                     else: navigation.speed(self.c_turn_velocity, -self.c_turn_velocity)
                 else: 
