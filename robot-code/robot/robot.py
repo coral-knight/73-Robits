@@ -52,7 +52,7 @@ class Robot:
         else:
             self.sensors.update(self.current_tick, self.navigation.turning)
 
-            self.navigation.speed(2, -2)
+            self.navigation.speed(4, -4)
             self.c_total_gyro += min(abs(self.sensors.gyro.last-self.c_last_tick_gyro), 2*math.pi-abs(self.sensors.gyro.last-self.c_last_tick_gyro))
             self.c_last_tick_gyro = self.sensors.gyro.last
 
@@ -89,7 +89,7 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
+        '''if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
@@ -140,7 +140,7 @@ class Robot:
                         print("sem parede")
                         self.navigation.exploring = True
                         self.navigation.append_list([x, y], 2)
-                        break
+                        break'''
 
 
         # Find a new point on the RRTs to go 
@@ -266,6 +266,11 @@ class Robot:
         # Go to marked tokens, and then spawn
         if self.navigation.explored and not self.navigation.collecting and not self.navigation.exploring:
             if len(self.sensors.camera.sign_list) > 0:
+                local_rrt = RRTLocal(self.map, self.sensors.gps.last)
+                
+                local_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
+                local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])      
+
                 walk_token = []
                 for sign in self.sensors.camera.sign_list:
                     print("end token", sign)
@@ -297,29 +302,28 @@ class Robot:
                     elif self.no_obstacle([x_left, y_left]): x, y = x_left, y_left
 
                     cont = 0
-                    parent, _ = self.global_rrt.closest_point([x, y], 1)
-                    while parent == [1000,1000] and cont < 2000:
+                    parent, _ = local_rrt.closest_point([x, y], 1)
+                    while parent == [1000,1000] and cont < 1000:
                         cont += 1
-                        new, _ = self.global_rrt.explore(1)
-                        if len(new) > 0 and not self.global_rrt.wall_between([x, y], new[0]): parent = new[0]
+                        new, _ = local_rrt.explore(1)
+                        if len(new) > 0 and not local_rrt.wall_between([x, y], new[0]): parent = new[0]
 
                     print("achou ponto", cont)
-                    if cont == 2000: 
+                    if cont == 1000: 
                         print("n pode ir para", [a, b])
                         self.sensors.camera.sign_list.remove(sign)
-                    if cont < 2000: 
-                        self.global_rrt.connect([x, y], parent)
+                    if cont < 1000: 
+                        local_rrt.connect([x, y], parent)
                         walk_token.append([x, y])
 
                 current_pos = self.sensors.gps.last
                 for w in walk_token:
                     print("from", current_pos, "to", w)
-                    end = len(self.navigation.action_list)-1
-                    self.navigation.solve([w, self.global_rrt.real_to_pos(w)], self.global_rrt.graph, [current_pos, self.global_rrt.real_to_pos(current_pos)], "end_collect")
+                    self.navigation.solve([w, local_rrt.real_to_pos(w)], local_rrt.graph, [current_pos, local_rrt.real_to_pos(current_pos)], "end_collect")
                     self.navigation.append_list(w, 2)
                     current_pos = w
             else:
-                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.cur_tile], "end")
+                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
 
         # Navigate

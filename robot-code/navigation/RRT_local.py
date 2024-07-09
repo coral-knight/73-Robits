@@ -163,14 +163,6 @@ class RRTLocal:
         return closest
 
 
-    def project_point(self, point, closest):
-        if self.dist_coords(point, closest) > self.min_dist:
-            ang = math.atan2(point[1]-closest[1], point[0]-closest[0])
-            point = [closest[0]+self.min_dist*math.cos(ang), closest[1]+self.min_dist*math.sin(ang)]
-
-        return point
-
-
     def add_graph(self, point):
         # Find points with a distance from 'point' less than 'radius', adding the new node and updating neighbours distances
 
@@ -217,21 +209,54 @@ class RRTLocal:
                 self.graph[mapx][mapy][len(self.graph[mapx, mapy])-1][2].append([[x, y], c]) # Add Child to the point node
 
         return parent, [[mapx, mapy], len(self.graph[mapx, mapy])-1]
-    
 
-    def update_unexplored(self):
-        for un in self.unexplored:
-            pos = self.real_to_pos(un[0])
-            map_p = self.map.real_to_map(un[0])
-            information_gain = 0
-            if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] == 0:
-                for x in range(map_p[0]-1, map_p[0]+2):
-                    for y in range(map_p[1]-1, map_p[1]+2):
-                        if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1):
-                            if self.map.seen_map[x, y] == 0: information_gain += 1
 
-            un[1] = information_gain
-            if information_gain == 0 or self.graph[pos[0][0]][pos[0][1]][pos[1]][3] == False: self.unexplored.remove(un)
+    def connect(self, pos, to):
+        # Create a node to position 'pos' with parent on 'to' (normally 'pos' is the current position after finishing a "walk" action)
+        if self.dist_coords(pos, to) < 0.003: return
+
+        px, py = self.real_to_map(pos)
+        tx, ty = self.real_to_map(to)
+
+        print("connecting", pos, to)
+        print("map", [px, py], [tx, ty])
+        print("initial", self.cur_tile)
+
+        parent = [[0, 0], 0]
+        dist = 1000
+
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if tx+i >= 0 and tx+i < np.size(self.graph, 0) and ty+j >= 0 and ty+j < np.size(self.graph, 1):
+                    tc = 0
+                    for v in self.graph[tx+i, ty+j]:
+                        if v != 0 and self.dist_coords(v[0], to) < dist:
+                            dist = self.dist_coords(v[0], to)
+                            parent = [[tx+i, ty+j], tc]
+                        tc += 1
+
+        if parent != [[0, 0], 0]:
+            [[tx, ty], tc] = parent
+            print("ligou em", parent, self.graph[tx, ty][tc][0])
+            self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True]) # Add new node
+            self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1]) # Add child
+            self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+
+        '''if self.dist_coords([0, 0], to) < 0.002:
+            print("ligamento inicial")
+            self.graph[px, py].append([pos, [[self.cur_tile[0][0]-px, self.cur_tile[0][1]-py], self.cur_tile[1]], [], True])
+            self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+        else:
+            tc = 0
+            for v in self.graph[tx, ty]:
+                print(v)
+                if v != 0 and self.dist_coords(v[0], to) < 0.007: 
+                    print("ligou")
+                    self.graph[px, py].append([pos, [[tx-px, ty-py], tc], [], True])
+                    self.graph[tx, ty][tc][2].append([[px-tx, py-ty], len(self.graph[px, py])-1])
+                    self.cur_tile = [[px, py], len(self.graph[px, py])-1]
+                    break
+                tc += 1'''
 
         return
 
@@ -247,7 +272,7 @@ class RRTLocal:
             if len(self.explore_bfs) == 0: 
                 print("explore bfs vazia")
                 #self.print()
-                break
+                return [[1000,1000]], self.unexplored
 
             cur = self.explore_bfs[0]
             self.explore_bfs.pop(0)

@@ -533,7 +533,7 @@ class Camera:
         _, warped_binary = cv2.threshold(warped_gray, 200, 255, cv2.THRESH_BINARY)
         percentage = np.sum(warped_binary == 0)/62500.0
         print("corrosive per", percentage)
-        if(percentage > 0.70): return 'C'
+        if(percentage > 0.75): return 'C'
         
         # Binary value for poison
         _, warped_binary = cv2.threshold(warped_gray, 100, 255, cv2.THRESH_BINARY)
