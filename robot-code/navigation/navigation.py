@@ -20,7 +20,6 @@ class Navigation:
         self.turning = True
         self.ending = False
         self.action_list = []
-        self.last_walk = [[0,0], self.sensors.gps.last]
 
         self.last_pos = [[0, 0], 0]
         self.last_stuck_pos = [0,0]
@@ -41,7 +40,6 @@ class Navigation:
         self.collecting = False
         self.walk_collect = False
         self.action_list = []
-        self.last_walk = [[0,0], self.sensors.gps.last]
 
         self.stuck_counter = 0
         self.stuck = 0
@@ -75,13 +73,11 @@ class Navigation:
                 print("terminou andar, argument: ", arg)
                 self.stuck = 0
                 self.sensors.gyro.last_front, self.sensors.gyro.last_side = 0, 0
-                self.last_walk[0] = self.last_walk[1]
-                self.last_walk[1] = point
                 self.action_list.pop(0)
+
+                if arg == 2: self.collecting = True # collectable sign
                 if self.ending and self.dist_coords(self.sensors.gps.last, [0, 0]) <= 0.005: return[["exit"]]
-                if arg == 0: return [["connect", self.last_walk[0]]] # new area
-                if arg == 1: return [["nothing"]] # backtracking
-                if arg == 2: return [["connect", self.last_walk[0]], ["collect"]] # collectable sign
+                return [["nothing"]]
 
         return [["nothing"]]
 
@@ -104,10 +100,7 @@ class Navigation:
                     print("tinha parede no caminho que eu n vi para", action)
                     self.exploring = False
                     self.action_list = []
-                    self.last_walk[0] = self.last_walk[1]
-                    self.last_walk[1] = self.sensors.gps.last
-                    print("atual e last:", self.last_walk[1], self.last_walk[0])
-                    return [["delete", action], ["connect", self.last_walk[0]]]
+                    return [["nothing"]]
                 
                 # Too much time at the same place
                 if self.dist_coords(self.last_stuck_pos, self.sensors.gps.last) > 0.02: 
@@ -121,7 +114,7 @@ class Navigation:
                     print("NAVIGATION STUCK", self.stuck)
                     if self.stuck > 1: 
                         self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
-                        return [["delete", self.sensors.gps.last]]
+                        return [["nothing"]]
                     else:
                         if abs(self.sensors.gyro.last_side) > 0.02: 
                             coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
@@ -135,18 +128,13 @@ class Navigation:
                         print("adding obstacle", [coordX, coordY])
 
                         self.action_list = []
-                        self.last_walk[0] = self.last_walk[1]
-                        self.last_walk[1] = self.sensors.gps.last
-                        return [["delete", action], ["connect", self.last_walk[0]]]
+                        return [["nothing"]]
                 
                 # New collect action added
                 if not self.explored and len(self.action_list) > 1 and last_arg == 2:
                     print("added collect action")
                     self.action_list = self.action_list[len(self.action_list)-1:]
-                    self.last_walk[0] = self.last_walk[1]
-                    self.last_walk[1] = self.sensors.gps.last
-                    print("atual e last:", self.last_walk[1], self.last_walk[0])
-                    return [["delete", action], ["connect", self.last_walk[0]]]
+                    return [["nothing"]]
                 
                 if arg == 2: self.walk_collect = True
                 else: self.walk_collect = False

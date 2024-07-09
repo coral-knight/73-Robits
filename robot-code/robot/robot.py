@@ -1,7 +1,6 @@
 from controller import Robot as Hardware
 from robot.sensors import Sensors
 from mapping.map import Map
-from navigation.RRT_global import RRTGlobal
 from navigation.RRT_local import RRTLocal
 from navigation.navigation import Navigation
 import numpy as np
@@ -28,6 +27,8 @@ class Robot:
         self.c_initial_pos = [0, 0]
         self.c_total_gyro = 0
         self.c_last_tick_gyro = 0
+
+        self.final_rrt = RRTLocal(self.map, [0, 0])
 
 
     def run_calibration(self):
@@ -58,6 +59,7 @@ class Robot:
 
             if self.c_total_gyro > 2*math.pi:
                 self.calibrated = True
+                self.navigation.speed(0,0)
 
         return
 
@@ -72,15 +74,7 @@ class Robot:
             self.calibrated = False
             return
         
-
         self.sensors.update(self.current_tick, self.navigation.turning)
-
-
-        # Initial configuration
-        if self.current_tick == self.calibration_timer+1:
-            self.navigation.speed(0,0)
-            self.global_rrt = RRTGlobal(self.map, self.sensors.gps.last)
-            return
 
 
         # Collect
@@ -150,9 +144,6 @@ class Robot:
 
             self.navigation.speed(0, 0)
 
-            self.global_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
-            self.global_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])
-
             # Add forward points
             angles = []
             forward = []
@@ -209,37 +200,28 @@ class Robot:
                 print("RRT START")
 
                 local_rrt = RRTLocal(self.map, self.sensors.gps.last)
-                self.global_rrt.update_unexplored()
 
                 local_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
                 local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])      
 
                 local_unexplored = []
-                global_unexplored = self.global_rrt.unexplored
 
                 cont = 0
-                while cont < 1000 and (cont < 500 or len(global_unexplored) == 0):
-                    if len(local_unexplored) >= 1: break
-                    if not all(self.dist_coords(self.sensors.gps.last, l[0]) > 0.24 for l in local_unexplored): break
-                    
+                while len(local_unexplored) == 0 and cont < 1000:
+                    _, local_unexplored = local_rrt.explore(1)
                     cont += 1
-                    _, local_unexplored = local_rrt.explore(3)
-                    _, global_unexplored = self.global_rrt.explore(1)
                     
                 print("cont", cont)
                 print("len local", len(local_unexplored))
-                print("len global", len(global_unexplored))
+                local_rrt.print()
 
-                if len(local_unexplored) == 0 and len(global_unexplored) == 0: 
+                if len(local_unexplored) == 0 : 
                     print("TERMINOU DE EXPLORAR")
                     self.navigation.explored = True
-                    local_rrt.print()
-                    self.global_rrt.print()
+                    self.final_rrt = local_rrt
 
-                elif len(local_unexplored) > 0:
-                    print("found LOCAL unexplored")
-                    local_rrt.print()
-
+                if len(local_unexplored) > 0:
+                    print("found LOCAL unexplored")                    
                     best = [[0, 0], -1000]
                     for un in local_unexplored:
                         print("possible", un)
@@ -249,28 +231,10 @@ class Robot:
 
                     self.navigation.solve([best[0], local_rrt.real_to_pos(best[0])], local_rrt.graph, [self.sensors.gps.last, local_rrt.real_to_pos(self.sensors.gps.last)], "explore")
 
-                elif len(global_unexplored) > 0:
-                    print("found GLOBAL unexplored")
-                    local_rrt.print()
-                    
-                    best = [[0, 0], -1000]
-                    for un in global_unexplored:
-                        print("possible", un)
-                        navigation_cost = self.dist_coords(self.sensors.gps.last, un[0])
-                        revenue = un[1]*0.0036 - navigation_cost
-                        if revenue > best[1]: best = [un[0], revenue]
-
-                    self.navigation.solve([best[0], self.global_rrt.real_to_pos(best[0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)], "explore")
-
 
         # Go to marked tokens, and then spawn
         if self.navigation.explored and not self.navigation.collecting and not self.navigation.exploring:
             if len(self.sensors.camera.sign_list) > 0:
-                local_rrt = RRTLocal(self.map, self.sensors.gps.last)
-                
-                local_rrt.graph_expand([self.map.range_x[0], self.map.range_y[0]])
-                local_rrt.graph_expand([self.map.range_x[1], self.map.range_y[1]])      
-
                 walk_token = []
                 for sign in self.sensors.camera.sign_list:
                     print("end token", sign)
@@ -302,48 +266,45 @@ class Robot:
                     elif self.no_obstacle([x_left, y_left]): x, y = x_left, y_left
 
                     cont = 0
-                    parent, _ = local_rrt.closest_point([x, y], 1)
+                    parent, _ = self.final_rrt.closest_point([x, y], 1)
                     while parent == [1000,1000] and cont < 1000:
                         cont += 1
-                        new, _ = local_rrt.explore(1)
-                        if len(new) > 0 and not local_rrt.wall_between([x, y], new[0]): parent = new[0]
+                        new, _ = self.final_rrt.explore(1)
+                        if len(new) > 0 and not self.final_rrt.wall_between([x, y], new[0]): parent = new[0]
 
                     print("achou ponto", cont)
                     if cont == 1000: 
                         print("n pode ir para", [a, b])
                         self.sensors.camera.sign_list.remove(sign)
                     if cont < 1000: 
-                        local_rrt.connect([x, y], parent)
+                        self.final_rrt.connect([x, y], parent)
                         walk_token.append([x, y])
 
                 current_pos = self.sensors.gps.last
                 for w in walk_token:
                     print("from", current_pos, "to", w)
-                    self.navigation.solve([w, local_rrt.real_to_pos(w)], local_rrt.graph, [current_pos, local_rrt.real_to_pos(current_pos)], "end_collect")
+                    self.navigation.solve([w, self.final_rrt.real_to_pos(w)], self.final_rrt.graph, [current_pos, self.final_rrt.real_to_pos(current_pos)], "end_collect")
                     self.navigation.append_list(w, 2)
                     current_pos = w
             else:
-                self.navigation.solve([[0, 0], self.global_rrt.real_to_pos([0, 0])], self.global_rrt.graph, [self.sensors.gps.last, self.global_rrt.real_to_pos(self.sensors.gps.last)], "end")
+                cont = 0
+                parent, _ = self.final_rrt.closest_point([0, 0], 1)
+                while parent == [1000,1000] and cont < 1000:
+                    cont += 1
+                    new, _ = self.final_rrt.explore(1)
+                    if len(new) > 0 and not self.final_rrt.wall_between([0, 0], new[0]): parent = new[0]
+
+                print("achou final", cont)
+                if cont == 1000: print("éhh......", [0, 0])
+                if cont < 1000: self.final_rrt.connect([0, 0], parent)
+
+                self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
 
         # Navigate
         if not self.navigation.collecting and self.navigation.exploring:
-            #self.global_rrt.update(self.sensors.gps.last, 0)
             action_list = self.navigation.navigate()
             for action in action_list:
-
-                if action[0] == "delete":
-                    print("pedido de deleta para", action[1])
-                    self.global_rrt.delete(action[1])
-
-                if action[0] == "connect":
-                    print("pedido de ligação", self.sensors.gps.last, action[1])
-                    self.global_rrt.connect(self.sensors.gps.last, action[1])
-
-                if action[0] == "collect":
-                    print("pedido de coleta")
-                    self.navigation.collecting = True
-                
                 if action[0] == "exit":
                     definitive_map = np.array(self.map.print_tile_map())
                     print("definitive_map")
