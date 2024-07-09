@@ -110,8 +110,10 @@ class RRTLocal:
         angle = (i * 0 + (35-i) * 2 * math.pi) / 35
         angle = 0 * angle_percent + 2 * math.pi * (1-angle_percent)
 
-        dist_percent = generator.random()
-        dist = 0.03 * dist_percent + 0.08 * (1-dist_percent)
+        #dist_percent = generator.random()
+        #dist = 0.03 * dist_percent + 0.06 * (1-dist_percent)
+
+        dist = 0.03
 
         x = gps[0] + dist * math.cos(angle)
         y = gps[1] + dist * math.sin(angle)
@@ -243,6 +245,7 @@ class RRTLocal:
             ticks -= 1
 
             if len(self.explore_bfs) == 0: 
+                print("explore bfs vazia")
                 #self.print()
                 break
 

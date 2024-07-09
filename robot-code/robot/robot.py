@@ -89,41 +89,43 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        '''if not self.exploring and self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
+        if self.current_tick % 20 == 0 and not self.navigation.collecting and not self.navigation.walk_collect:
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
                 # Create [x, y] slightly away from the sign's wall (vectors)
                 [a, b] = sign[1]
+                if self.dist_coords(self.sensors.gps.last, [a, b]) > 0.24: continue
+
                 [ae, be] = sign[2]
                 [ad, bd] = sign[3]
 
                 vi = [ad-ae, bd-be]
                 u = [vi[1], -1*vi[0]]
 
-                w = [vi[0] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.04 / math.sqrt(vi[0]**2 + vi[1]**2))]
+                w = [vi[0] * (0.03 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.03 / math.sqrt(vi[0]**2 + vi[1]**2))]
                 uw = [w[1], -1*w[0]]
 
                 w2 = [-1*w[0], -1*w[1]]
                 uw2 = [-1*w2[1], w2[0]]
 
-                x = u[0] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
-                y = u[1] * (0.06 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
+                x = u[0] * (0.055 / math.sqrt(vi[0]**2 + vi[1]**2)) + a
+                y = u[1] * (0.055 / math.sqrt(vi[0]**2 + vi[1]**2)) + b 
 
-                x_right = uw[0] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
-                y_right = uw[1] * (0.06 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
+                x_right = uw[0] * (0.055 / math.sqrt(w[0]**2 + w[1]**2)) + a + w[0]
+                y_right = uw[1] * (0.055 / math.sqrt(w[0]**2 + w[1]**2)) + b + w[1]
 
-                x_left = uw2[0] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
-                y_left = uw2[1] * (0.06 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
+                x_left = uw2[0] * (0.055 / math.sqrt(w2[0]**2 + w2[1]**2)) + a + w2[0]
+                y_left = uw2[1] * (0.055 / math.sqrt(w2[0]**2 + w2[1]**2)) + b + w2[1]
 
                 # Robot's angle to the sign and wall angulation
                 ang = math.atan2(b - self.sensors.gps.last[1], a - self.sensors.gps.last[0])
                 [ang_min, ang_max] = sign[4] 
 
-                print("sign", sign[1], [x, y])
-                print("left", [ae, be])
-                print("right", [ad, bd])
-                print("angles", ang, ang_min, ang_max)
+                #print("sign", sign[1], [x, y])
+                #print("left", [ae, be])
+                #print("right", [ad, bd])
+                #print("angles", ang, ang_min, ang_max)
 
                 # Check **if it's on the right side of the wall** and if there's no wall between
                 if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
@@ -132,12 +134,13 @@ class Robot:
                     if not self.wall_between(self.sensors.gps.last, [x, y]): x, y = x, y
                     elif not self.wall_between(self.sensors.gps.last, [x_right, y_right]): x, y = x_right, y_right
                     elif not self.wall_between(self.sensors.gps.last, [x_left, y_left]): x, y = x_left, y_left
+                    else: x, y = 1000, 1000
 
-                    if not self.wall_between(self.sensors.gps.last, [x, y]):
+                    if [x, y] != [1000,1000]:
                         print("sem parede")
                         self.navigation.exploring = True
                         self.navigation.append_list([x, y], 2)
-                        break'''
+                        break
 
 
         # Find a new point on the RRTs to go 
