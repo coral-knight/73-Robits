@@ -43,16 +43,18 @@ class Lidar:
             coordZ_3 = self.gps.z + self.point_cloud[3][i].z
 
             # Close points to get if it's not on the edge of the wall
-            [coordX_d, coordY_d] = self.ray_coords((i+1) % 512, 2, current_tick)
-            [coordX_e, coordY_e] = self.ray_coords((i-1+512) % 512, 2, current_tick)
+            [coordX_d, coordY_d] = self.ray_coords((i+1) % 511, 2, current_tick)
+            [coordX_e, coordY_e] = self.ray_coords((i-1+511) % 511, 2, current_tick)
+            [coordX_d2, coordY_d2] = self.ray_coords((i+2) % 511, 2, current_tick)
+            [coordX_e2, coordY_e2] = self.ray_coords((i-2+511) % 511, 2, current_tick)
 
-            [coordX_d_3, coordY_d_3] = self.ray_coords((i+1) % 512, 3, current_tick)
-            [coordX_e_3, coordY_e_3] = self.ray_coords((i-1+512) % 512, 3, current_tick)
+            [coordX_d_3, coordY_d_3] = self.ray_coords((i+1) % 511, 3, current_tick)
+            [coordX_e_3, coordY_e_3] = self.ray_coords((i-1+511) % 511, 3, current_tick)
 
             # Dist to the close points
-            dist_ant = self.dist_coords([coordX, coordY], [coordX_d, coordY_d])
-            dist_prox = self.dist_coords([coordX, coordY], [coordX_e, coordY_e])
-            dist_ap = self.dist_coords([coordX_e, coordY_e], [coordX_d, coordY_d])
+            dist_ant = self.dist_coords([coordX_e, coordY_e], [coordX_d2, coordY_d2])
+            dist_prox = self.dist_coords([coordX_e2, coordY_e2], [coordX_d, coordY_d])
+            dist_ap = self.dist_coords([coordX_e2, coordY_e2], [coordX_d2, coordY_d2])
 
             dist_ant_3 = self.dist_coords([coordX_3, coordY_3], [coordX_d_3, coordY_d_3])
             dist_prox_3 = self.dist_coords([coordX_3, coordY_3], [coordX_e_3, coordY_e_3])
@@ -60,7 +62,7 @@ class Lidar:
 
             # Conditions to mark wall
             if self.dist_coords(self.gps.last, [coordX, coordY]) < 0.98:
-                if (dist_ap < 0.02) and (dist_ant < 0.01) and (dist_prox < 0.01):
+                if (dist_ant < 0.008) or (dist_prox < 0.008) or (dist_ap < 0.03):
 
                     # Get the bottom of the cone if it appears on 3 layers of ray
                     if (i > 384 or i < 128) and abs(coordZ_3 - (-0.066)) > 0.006 and self.dist_coords(self.gps.last, [coordX_3, coordY_3]) < 0.3:

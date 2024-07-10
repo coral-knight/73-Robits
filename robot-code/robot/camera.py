@@ -53,9 +53,10 @@ class Camera:
         closest = [-1, 1000]
         for i in range(len(self.sign_list)):
             sign = self.sign_list[i]
-            print("sign list", sign)
-
+            print("sign list", sign, self.dist_coords(coords, sign[1]))
+            
             if self.dist_coords(coords, sign[1]) < closest[1]:
+                print("close")
                 ang = math.atan2(sign[1][1] - self.gps.last[1], sign[1][0] - self.gps.last[0])
                 [ang_min, ang_max] = sign[4]
 
@@ -545,11 +546,11 @@ class Camera:
 
 
     def seen(self, current_tick):
-        ray_left = round((math.pi-(1.2))*256/math.pi + 255.5)
-        ray_left = ray_left % 512
+        ray_left = round((math.pi-(1.2))*255.5/math.pi + 255.5)
+        ray_left = ray_left % 511
 
-        ray_right = round((math.pi+(1.2))*256/math.pi + 255.5)
-        ray_right = ray_right % 512
+        ray_right = round((math.pi+(1.2))*255.5/math.pi + 255.5)
+        ray_right = ray_right % 511
 
         ray = ray_left
         while ray != ray_right:
@@ -566,7 +567,7 @@ class Camera:
                         continue
 
             ray += 1
-            if ray == 512: ray = 0
+            if ray == 511: ray = 0
 
 
     def find(self, image):
@@ -668,8 +669,8 @@ class Camera:
                 if ((x_left+x_right)/2) > 128:
                     img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 63.5) - 0.75
                 
-                raio = round( ((math.pi-(img_angle))*256/math.pi) + 255.5 )
-                raio = raio % 512
+                raio = round( ((math.pi-(img_angle))*255.5/math.pi) + 255.5 )
+                raio = raio % 511
 
                 dist = self.lidar.ray_front_dist(raio, current_tick)
                 #print("raio", raio)
@@ -686,22 +687,22 @@ class Camera:
                     rd = 1
                     if dist < 0.08: rd = 3
 
-                    aux = 2*math.pi/512
+                    aux = 2*math.pi/511
 
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
 
                     ang = math.atan2(b - self.gps.last[1], a - self.gps.last[0]) 
                     ang_max = math.atan2(be-bd, ae-ad)
                     ang_min = math.atan2(bd-be, ad-ae)
                     
                     rd = 3
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+512)%512, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%512, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
+                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
+                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
+                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
+                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
 
                     #print("coords left", ae, be)
                     #print("coords right", ad, bd)
@@ -747,18 +748,18 @@ class Camera:
         horizontal_fov = 1.5
         vertical_fov = 0.566587633
 
-        tan_angle_Y = (y-19.5) * math.tan(vertical_fov/2) / 19.5
+        tan_angle_Y = (y-19.5) * math.tan(vertical_fov/2) / 20
         d_min = 0.03/tan_angle_Y
 
         #if d_min > 0.28: return [1000, 1000]
 
         if x < 128: 
-            angle_X = math.atan((-x+63.5) * math.tan(horizontal_fov/2) / 63.5)
+            angle_X = math.atan((-x+63.5) * math.tan(horizontal_fov/2) / 64)
             distance = d_min / math.cos(angle_X)
             angle_X += 0.75
 
         if x >= 128:
-            angle_X = math.atan((-(x-128)+63.5) * math.tan(horizontal_fov/2) / 63.5)
+            angle_X = math.atan((-(x-128)+63.5) * math.tan(horizontal_fov/2) / 64)
             distance = d_min / math.cos(angle_X)
             angle_X -= 0.75
 

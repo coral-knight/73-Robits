@@ -131,7 +131,7 @@ class Robot:
                     else: x, y = 1000, 1000
 
                     if [x, y] != [1000,1000]:
-                        print("sem parede")
+                        print("sem parede", sign)
                         self.navigation.exploring = True
                         self.navigation.append_list([x, y], 2)
                         break
@@ -210,6 +210,7 @@ class Robot:
                 while len(local_unexplored) == 0 and cont < 1000:
                     _, local_unexplored = local_rrt.explore(1)
                     cont += 1
+                    if _ == [[1000,1000]]: cont = 1000
                     
                 print("cont", cont)
                 print("len local", len(local_unexplored))
@@ -295,10 +296,13 @@ class Robot:
                     if len(new) > 0 and not self.final_rrt.wall_between([0, 0], new[0]): parent = new[0]
 
                 print("achou final", cont)
-                if cont == 1000: print("éhh......", [0, 0])
-                if cont < 1000: self.final_rrt.connect([0, 0], parent)
-
-                self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
+                if cont == 1000: 
+                    print("éhh......", [0, 0])
+                    self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
+                    self.navigation.explored = False
+                if cont < 1000: 
+                    self.final_rrt.connect([0, 0], parent)
+                    self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
 
         # Navigate

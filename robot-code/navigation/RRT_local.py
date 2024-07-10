@@ -107,7 +107,7 @@ class RRTLocal:
 
     def angle_point(self, gps, i):
         angle_percent = generator.random()
-        angle = (i * 0 + (35-i) * 2 * math.pi) / 35
+        angle = (i * 0 + (47-i) * 2 * math.pi) / 47
         angle = 0 * angle_percent + 2 * math.pi * (1-angle_percent)
 
         #dist_percent = generator.random()
@@ -279,9 +279,10 @@ class RRTLocal:
 
             #print("current", cur)
 
-            for i in range(36):
-                if i < 36: point = self.angle_point(cur, i)
+            for i in range(48):
+                if i < 48: point = self.angle_point(cur, i)
                 else: point = self.random_point(cur, i)
+
                 p = self.real_to_map(point)
                 g = self.graph[p[0], p[1]]
 
@@ -320,7 +321,9 @@ class RRTLocal:
         points = [[initial_node, [[initial_x, initial_y], 1]]]
 
         print("[", end = " ")
-        while len(points) != 0:
+        cont = 0
+        while len(points) != 0 and cont < 4000:
+            cont += 1
             node = points[0][0]
             pos = points[0][1]
             points.pop(0)
@@ -333,6 +336,8 @@ class RRTLocal:
 
                 print("[", node[0], ",", child[0], "]", end = ", ")
         print("]", end = " ")
+
+        if cont == 4000: print("WHILE PRINT RRT")
 
 
     '''========================================= AUXILIAR FUNCTIONS ==========================================='''
@@ -376,7 +381,7 @@ class RRTLocal:
         parent_point = self.graph[parent_pos[0][0]][parent_pos[0][1]][parent_pos[1]][0]
 
         a = 0
-        while pos != parent_pos and a < 500:
+        while pos != parent_pos and a < 2000:
             s += self.dist_coords(point, parent_point)
 
             pos = parent_pos
@@ -386,7 +391,7 @@ class RRTLocal:
             parent_point = self.graph[parent_pos[0][0]][parent_pos[0][1]][parent_pos[1]][0]
 
             a += 1
-        if a == 500: print("WHILE TOTAL_DIST")
+        if a == 2000: print("WHILE TOTAL_DIST")
 
         return s
     
@@ -418,7 +423,7 @@ class RRTLocal:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and (self.dist_coords(p, v) < 0.036 or (self.dist_coords(p, self.initial_pos) > 0.005 and self.dist_coords(p, v) < 0.0376)):
+                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(self.initial_pos, p) > 0.036:
                                 return True
                 
         return False

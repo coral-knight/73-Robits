@@ -60,7 +60,6 @@ class Navigation:
 
         if abs(delta_angle) >= 0.05:
             self.turning = True
-            print("aqui mesmo", delta_angle)
 
             if delta_angle >= 0: self.speed(-self.turn_velocity, self.turn_velocity)
             else: self.speed(self.turn_velocity, -self.turn_velocity)
@@ -158,7 +157,9 @@ class Navigation:
 
         print("smoothing", v, "walks")
 
-        while p != v:
+        cont = 0
+        while p != v and cont < 3000:
+            cont += 1
             a, b = self.action_list[p][1], self.action_list[v][1]
             if not self.wall_between(a, b) or p == v-1:
                 print("can go from", p, "to", v)
@@ -166,6 +167,7 @@ class Navigation:
                 p, v = v, len(self.action_list)-1
             else: 
                 v -= 1
+        if cont == 3000: print("WHILE SMOOTHING")
 
         self.action_list[ini:] = aux_list[1:]
 
@@ -330,12 +332,12 @@ class Navigation:
         s = 0
         parent_pos = self.graph_parent(graph, pos)
 
-        while pos != parent_pos and s < 500:
+        while pos != parent_pos and s < 2000:
             s += 1
             pos = parent_pos
             parent_pos = self.graph_parent(graph, pos) # Graph position of point parent
 
-        if s == 500: print("WHILE TOTAL_LEVEL")
+        if s == 2000: print("WHILE TOTAL_LEVEL")
 
         return s
     
