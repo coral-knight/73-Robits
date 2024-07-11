@@ -25,7 +25,7 @@ class Robot:
         self.calibration_timer = 0
         self.calibrated = False
         self.c_initial_pos = [0, 0]
-        self.c_total_gyro = 0
+        self.c_total_gyro = 10
         self.c_last_tick_gyro = 0
 
         self.final_rrt = RRTLocal(self.map, [0, 0])

@@ -743,7 +743,7 @@ class Camera:
 
     def pixel_ground_position(self, pos):
         [x, y] = pos
-        #if x == 1000 or y <= 19: return [1000, 1000]
+        if x == 1000 or y <= 19: return [1000, 1000]
 
         horizontal_fov = 1.5
         vertical_fov = 0.566587633
@@ -772,7 +772,6 @@ class Camera:
     def bfs_tile(self, hsv_img, xi, yi):
         img = hsv_img.copy()
         initial_hsv = [hsv_img.item(yi, xi, 0), hsv_img.item(yi, xi, 1), hsv_img.item(yi, xi, 2)]
-        colour = self.identify_colour(initial_hsv)
 
         values, diff_value = [hsv_img.item(yi, xi, 2)], 1
         min_top = 40
@@ -792,11 +791,6 @@ class Camera:
                 area += 1
 
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)]
-
-                '''if y > 0: top_hsv = [hsv_img.item(y-1, x, 0), hsv_img.item(y-1, x, 1), hsv_img.item(y-1, x, 2)]
-                if y < 39: bottom_hsv = [hsv_img.item(y+1, x, 0), hsv_img.item(y+1, x, 1), hsv_img.item(y+1, x, 2)]
-                if x < 255: right_hsv = [hsv_img.item(y, x+1, 0), hsv_img.item(y, x+1, 1), hsv_img.item(y, x+1, 2)]
-                if x > 0: left_hsv = [hsv_img.item(y, x-1, 0), hsv_img.item(y, x-1, 1), hsv_img.item(y, x-1, 2)]'''
                 
                 if self.is_blank_ground([img.item(y, x, 0), img.item(y, x, 1), img.item(y, x, 2)]): continue
                 if abs(initial_hsv[0] - colour_hsv[0]) > 10 or abs(initial_hsv[1] - colour_hsv[1]) > 0.1: continue
@@ -807,25 +801,10 @@ class Camera:
 
                 min_top = min(min_top, y)
 
-                '''top, bot, left, right = False, False, False, False
-                if y > 0 and (not self.is_wall(top_hsv) and (abs(initial_hsv[0] - top_hsv[0]) > 10 or abs(initial_hsv[1] - top_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and top_hsv[2] > 188))):
-                    top = True
-                if y < 39 and (not self.is_wall(bottom_hsv) and (abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188))):
-                    bot = True
-                if x > 0 and (not self.is_wall(left_hsv) and (abs(initial_hsv[0] - left_hsv[0]) > 10 or abs(initial_hsv[1] - left_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and left_hsv[2] > 188))):
-                    left = True
-                if x < 255 and (not self.is_wall(right_hsv) and (abs(initial_hsv[0] - right_hsv[0]) > 10 or abs(initial_hsv[1] - right_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and right_hsv[2] > 188))):
-                    right = True
-                        
-                if bot and left and right: ground.append([x, y-2])
-                elif bot and left: ground.append([x+2, y-1])
-                elif bot and right: ground.append([x-2, y-1])
-                elif bot: ground.append([x, y-2])'''
-
                 coords = self.pixel_ground_position([x, y])
                 dist = self.dist_coords(self.gps.last, coords)
 
-                if coords != [1000, 1000] and dist < 0.25:
+                if coords != [1000, 1000] and dist < 0.3:
                     a, b = int(coords[0] / 0.06), int(coords[1] / 0.06)
                     if a != 0: a = int((a+(a/abs(a)))/2)
                     if b != 0: b = int((b+(b/abs(b)))/2)
@@ -833,13 +812,13 @@ class Camera:
                     minx, miny = a*0.12-0.06, b*0.12-0.06
                     maxx, maxy = a*0.12+0.06, b*0.12+0.06
 
-                    if dist < 0.15: border = 0.03
-                    else: border = 0.045
+                    if dist < 0.2: border = 0.015
+                    else: border = 0.03
 
                     if abs(coords[0]-minx) > border and abs(coords[0]-maxx) > border and abs(coords[1]-miny) > border and abs(coords[1]-maxy) > border:
                         if all([a*0.12, b*0.12] != x for x in tiles): 
-                            if colour != 'ob': 
-                                cv2.imwrite("added" + str(a) + "_" + str(b) + "_" + colour + ".png", hsv_img)
+                            #if colour != 'ob': 
+                                #cv2.imwrite("added" + str(x) + "_" + str(y) + "_" + colour + ".png", hsv_img)
                                 #print(a*0.12, b*0.12)
                                 #print(x, y)
                                 #print("coords", coords)
@@ -887,7 +866,7 @@ class Camera:
 
         for x in range(0, 256):
             if self.is_wall([hsv_img.item(0, x, 0), hsv_img.item(0, x, 1), hsv_img.item(0, x, 2)]): continue 
-            for y in range(39, 0, -1):
+            for y in range(39, 20, -1):
                 colour_hsv = [hsv_img.item(y, x, 0), hsv_img.item(y, x, 1), hsv_img.item(y, x, 2)] 
                 g_colour = self.identify_colour(colour_hsv)
 

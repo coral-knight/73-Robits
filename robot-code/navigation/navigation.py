@@ -71,7 +71,6 @@ class Navigation:
             else:
                 print("terminou andar, argument: ", arg)
                 self.stuck = 0
-                self.sensors.gyro.last_front, self.sensors.gyro.last_side = 0, 0
                 self.action_list.pop(0)
 
                 if arg == 2: self.collecting = True # collectable sign
