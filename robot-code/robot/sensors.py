@@ -35,7 +35,7 @@ class Sensors:
         self.gps.update()
         #self.distance.update()
 
-        if max(abs(self.gyro.last_front), abs(self.gyro.last_side)) > 0.01:
+        if max(abs(self.gyro.last_front), abs(self.gyro.last_side)) > 0.007:
             print("ROTATED", self.gyro.last_front, self.gyro.last_side)
             if self.dist_coords(self.gps.last, self.rot_initial_pos) > 0.03:
                 print("FIXED")

@@ -24,6 +24,7 @@ class Robot:
         self.current_tick = 0
         self.calibration_timer = 0
         self.calibrated = False
+        self.ended = False
         self.c_initial_pos = [0, 0]
         self.c_total_gyro = 10
         self.c_last_tick_gyro = 0
@@ -207,10 +208,10 @@ class Robot:
                 local_unexplored = []
 
                 cont = 0
-                while len(local_unexplored) == 0 and cont < 1000:
+                while len(local_unexplored) == 0 and cont < 10000:
                     _, local_unexplored = local_rrt.explore(1)
                     cont += 1
-                    if _ == [[1000,1000]]: cont = 1000
+                    if _ == [[1000,1000]]: cont = 10000
                     
                 print("cont", cont)
                 print("len local", len(local_unexplored))
@@ -268,16 +269,17 @@ class Robot:
 
                     cont = 0
                     parent, _ = self.final_rrt.closest_point([x, y], 1)
-                    while parent == [1000,1000] and cont < 1000:
-                        cont += 1
+                    while parent == [1000,1000] and cont < 10000:
                         new, _ = self.final_rrt.explore(1)
                         if len(new) > 0 and not self.final_rrt.wall_between([x, y], new[0]): parent = new[0]
+                        cont += 1
+                        if new == [[1000,1000]]: cont = 10000
 
                     print("achou ponto", cont)
-                    if cont == 1000: 
+                    if cont == 10000: 
                         print("n pode ir para", [a, b])
                         self.sensors.camera.sign_list.remove(sign)
-                    if cont < 1000: 
+                    if cont < 10000: 
                         self.final_rrt.connect([x, y], parent)
                         walk_token.append([x, y])
 
@@ -290,17 +292,18 @@ class Robot:
             else:
                 cont = 0
                 parent, _ = self.final_rrt.closest_point([0, 0], 1)
-                while parent == [1000,1000] and cont < 1000:
-                    cont += 1
+                while parent == [1000,1000] and cont < 10000:
                     new, _ = self.final_rrt.explore(1)
                     if len(new) > 0 and not self.final_rrt.wall_between([0, 0], new[0]): parent = new[0]
+                    cont += 1
+                    if new == [[1000,1000]]: cont = 10000
 
                 print("achou final", cont)
-                if cont == 1000: 
+                if cont == 10000: 
                     print("éhh......", [0, 0])
                     self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                     self.navigation.explored = False
-                if cont < 1000: 
+                if cont < 10000: 
                     self.final_rrt.connect([0, 0], parent)
                     self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
@@ -323,7 +326,8 @@ class Robot:
                     self.sensors.emitter.send(map_evaluate_request)
                     exit_mes = struct.pack('c', b'E')
                     self.sensors.emitter.send(exit_mes)
-        
+                    self.ended = True
+
 
         return
         
@@ -336,12 +340,12 @@ class Robot:
             self.current_tick += 1
             if not self.calibrated:
                 self.run_calibration()
-            else:
+            elif not self.ended:
                 self.run_simulation()
                 #self.navigation.speed(0, 0)
                 #self.sensors.update(self.current_tick, False)
-            #if self.current_tick % 200 and self.current_tick > 50:
-                #print(self.sensors.camera.identify_token(self.sensors.camera.joint_image()))
+            else:
+                self.sensors.update()
         return
     
 

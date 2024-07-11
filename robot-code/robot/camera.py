@@ -404,7 +404,7 @@ class Camera:
                 if not self.is_wall(px):
                     cont_cur_column += 1
 
-            if cont_last_column != 0 and abs(cont_cur_column - cont_last_column) >= 10:
+            if abs(cont_cur_column - cont_last_column) >= 10:
                 vertices.sort()
                 sorted_vertices = []
                 for i in vertices: sorted_vertices.append(i[1])
@@ -413,7 +413,7 @@ class Camera:
             
             cont_last_column = cont_cur_column
     
-        if x_greater_top - x_least_top >= 1 or x_greater_bot - x_least_bot >= 1:
+        if x_greater_top - x_least_top >= 5 or x_greater_bot - x_least_bot >= 5:
             v3, v4 = self.find_square_vertices(left_down, right_up)
             angleToCenter = math.atan2(v3[1]-mid[1], v3[0]-mid[0])
             vertices.append([angleToCenter, [v3[0], v3[1]]])
@@ -556,15 +556,36 @@ class Camera:
         while ray != ray_right:
             [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
 
+            max_dist = 0.24
             dist = self.dist_coords(self.gps.front, [coordX, coordY])
-            if dist < 0.24:
-                d = int(dist/0.02) if int(dist/0.02) > 0 else 1
-                for i in range(d+1): 
-                    [x, y] = [((d-i)*self.gps.front[0]+i*coordX)/d, ((d-i)*self.gps.front[1]+i*coordY)/d]
-                    if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
-                        self.map.seen([x, y])
-                    else:
-                        continue
+            if dist > max_dist or math.isnan(dist):
+                ang = (511-ray) * 2*math.pi/511
+                if ang > math.pi: ang -= 2*math.pi
+                coordX2 = self.gps.front[0] + max_dist * math.cos(self.gyro.last + ang)
+                coordY2 = self.gps.front[1] + max_dist * math.sin(self.gyro.last + ang)
+
+                m = self.map.real_to_map([coordX2, coordY2])
+                if self.dist_coords([1.05, -0.15], self.map.map_to_real(m)) < 0.03:
+                    print("aqui aqui")
+                    print(self.gps.last)
+                    print(ray)
+                    print(ang)
+                    print([coordX, coordY])
+                    print([coordX2, coordY2])
+                    print(dist)
+                
+                coordX = coordX2
+                coordY = coordY2
+
+                dist = max_dist
+
+            d = int(dist/0.04) if int(dist/0.04) > 0 else 1
+            for i in range(d+1): 
+                [x, y] = [((d-i)*self.gps.front[0]+i*coordX)/d, ((d-i)*self.gps.front[1]+i*coordY)/d]
+                if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
+                    self.map.seen([x, y])
+                else:
+                    continue
 
             ray += 1
             if ray == 511: ray = 0
@@ -665,9 +686,9 @@ class Camera:
                 #cv2.imwrite("possible_victim_" + str(tick_count) + ".png", img)
 
                 if ((x_left+x_right)/2) <= 128: 
-                    img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 63.5) + 0.75
+                    img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 64) + 0.75
                 if ((x_left+x_right)/2) > 128:
-                    img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 63.5) - 0.75
+                    img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 64) - 0.75
                 
                 raio = round( ((math.pi-(img_angle))*255.5/math.pi) + 255.5 )
                 raio = raio % 511
