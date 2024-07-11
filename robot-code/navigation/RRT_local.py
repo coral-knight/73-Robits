@@ -401,7 +401,7 @@ class RRTLocal:
             for y in range(-1, 2):
                 if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                     for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                        if v != 0 and self.dist_coords(pos, v) < 0.0375:
+                        if v != 0 and self.dist_coords(pos, v) < 0.038:
                             return False
                         
         return True
@@ -421,7 +421,7 @@ class RRTLocal:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0375 and self.dist_coords(self.initial_pos, p) > 0.036:
+                            if v != 0 and self.dist_coords(p, v) < 0.038 and self.dist_coords(self.initial_pos, p) > 0.036:
                                 return True
                 
         return False

@@ -160,7 +160,7 @@ class Navigation:
         while p != v and cont < 3000:
             cont += 1
             a, b = self.action_list[p][1], self.action_list[v][1]
-            if not self.wall_between(a, b) or p == v-1:
+            if not self.smooth_wall_between(a, b) or p == v-1:
                 print("can go from", p, "to", v)
                 aux_list.append(self.action_list[v])
                 p, v = v, len(self.action_list)-1
@@ -357,6 +357,27 @@ class Navigation:
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
                             if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(a, p) > 0.036:
                                 print("parede", v, self.dist_coords(p, v))
+                                return True
+                
+        return False
+
+
+    def smooth_wall_between(self, a, b):
+        # Can the robot go safely from a to b?
+
+        d = int(self.dist_coords(a, b)/0.02)
+        if d == 0: d = 1
+
+        for i in range(d+1): 
+            p = [((d-i)*a[0]+i*b[0])/d, ((d-i)*a[1]+i*b[1])/d]
+            map_p = self.map.real_to_map(p)
+
+            for x in range(-1, 2):
+                for y in range(-1, 2):
+                    if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
+                        for v in self.map.map[map_p[0]+x, map_p[1]+y]:
+                            if v != 0 and self.dist_coords(p, v) < 0.038 and self.dist_coords(a, p) > 0.036:
+                                print("smooth parede", v, self.dist_coords(p, v))
                                 return True
                 
         return False

@@ -43,30 +43,32 @@ class Lidar:
             coordZ_3 = self.gps.z + self.point_cloud[3][i].z
 
             # Close points to get if it's not on the edge of the wall
-            [coordX_d, coordY_d] = self.ray_coords((i+1) % 511, 2, current_tick)
-            [coordX_e, coordY_e] = self.ray_coords((i-1+511) % 511, 2, current_tick)
             [coordX_d2, coordY_d2] = self.ray_coords((i+2) % 511, 2, current_tick)
             [coordX_e2, coordY_e2] = self.ray_coords((i-2+511) % 511, 2, current_tick)
+            [coordX_d3, coordY_d3] = self.ray_coords((i+3) % 511, 2, current_tick)
+            [coordX_e3, coordY_e3] = self.ray_coords((i-3+511) % 511, 2, current_tick)
 
-            [coordX_d_3, coordY_d_3] = self.ray_coords((i+1) % 511, 3, current_tick)
-            [coordX_e_3, coordY_e_3] = self.ray_coords((i-1+511) % 511, 3, current_tick)
+            [coordX_d2_3, coordY_d2_3] = self.ray_coords((i+2) % 511, 3, current_tick)
+            [coordX_e2_3, coordY_e2_3] = self.ray_coords((i-2+511) % 511, 3, current_tick)
+            [coordX_d3_3, coordY_d3_3] = self.ray_coords((i+3) % 511, 3, current_tick)
+            [coordX_e3_3, coordY_e3_3] = self.ray_coords((i-3+511) % 511, 3, current_tick)
 
             # Dist to the close points
-            dist_ant = self.dist_coords([coordX_e, coordY_e], [coordX_d2, coordY_d2])
-            dist_prox = self.dist_coords([coordX_e2, coordY_e2], [coordX_d, coordY_d])
+            dist_ant = self.dist_coords([coordX, coordY], [coordX_d3, coordY_d3])
+            dist_prox = self.dist_coords([coordX_e3, coordY_e3], [coordX, coordY])
             dist_ap = self.dist_coords([coordX_e2, coordY_e2], [coordX_d2, coordY_d2])
 
-            dist_ant_3 = self.dist_coords([coordX_3, coordY_3], [coordX_d_3, coordY_d_3])
-            dist_prox_3 = self.dist_coords([coordX_3, coordY_3], [coordX_e_3, coordY_e_3])
-            dist_ap_3 = self.dist_coords([coordX_e_3, coordY_e_3], [coordX_d_3, coordY_d_3])
+            dist_ant_3 = self.dist_coords([coordX_3, coordY_3], [coordX_d3_3, coordY_d3_3])
+            dist_prox_3 = self.dist_coords([coordX_e3_3, coordY_e3_3], [coordX_3, coordY_3])
+            dist_ap_3 = self.dist_coords([coordX_e2_3, coordY_e2_3], [coordX_d2_3, coordY_d2_3])
 
             # Conditions to mark wall
             if self.dist_coords(self.gps.last, [coordX, coordY]) < 0.98:
-                if (dist_ant < 0.01) or (dist_prox < 0.01) or (dist_ap < 0.03):
+                if (dist_ant < 0.015) or (dist_prox < 0.015) or (dist_ap < 0.03):
 
                     # Get the bottom of the cone if it appears on 3 layers of ray
                     if (i > 384 or i < 128) and abs(coordZ_3 - (-0.066)) > 0.006 and self.dist_coords(self.gps.last, [coordX_3, coordY_3]) < 0.3:
-                        if (dist_ap_3 < 0.04) and (dist_ant_3 < 0.01) and (dist_prox_3 < 0.01):
+                         if (dist_ant_3 < 0.015) or (dist_prox_3 < 0.015) or (dist_ap_3 < 0.03):
 
                             if self.dist_coords(self.gps.last, [coordX_1, coordY_1]) < 0.98 and self.dist_coords([coordX, coordY], [coordX_3, coordY_3]) < 0.01:
                                 ang_x_1, ang_y_1 = math.atan2(coordX_1-coordX, coordZ_1-coordZ), math.atan2(coordY_1-coordY, coordZ_1-coordZ)

@@ -561,22 +561,8 @@ class Camera:
             if dist > max_dist or math.isnan(dist):
                 ang = (511-ray) * 2*math.pi/511
                 if ang > math.pi: ang -= 2*math.pi
-                coordX2 = self.gps.front[0] + max_dist * math.cos(self.gyro.last + ang)
-                coordY2 = self.gps.front[1] + max_dist * math.sin(self.gyro.last + ang)
-
-                m = self.map.real_to_map([coordX2, coordY2])
-                if self.dist_coords([1.05, -0.15], self.map.map_to_real(m)) < 0.03:
-                    print("aqui aqui")
-                    print(self.gps.last)
-                    print(ray)
-                    print(ang)
-                    print([coordX, coordY])
-                    print([coordX2, coordY2])
-                    print(dist)
-                
-                coordX = coordX2
-                coordY = coordY2
-
+                coordX = self.gps.front[0] + max_dist * math.cos(self.gyro.last + ang)
+                coordY = self.gps.front[1] + max_dist * math.sin(self.gyro.last + ang)
                 dist = max_dist
 
             d = int(dist/0.04) if int(dist/0.04) > 0 else 1

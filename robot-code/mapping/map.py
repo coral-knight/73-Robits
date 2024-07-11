@@ -829,7 +829,7 @@ class Map:
 
         return mapaFinal
     
-    
+
     def print_real(self):
         for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
