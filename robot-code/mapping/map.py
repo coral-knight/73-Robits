@@ -23,8 +23,11 @@ class Map:
                 self.extra_map[x, y] = [0]
 
 
-        # 0: unknown | 1: lidar | 2: camera | 3: passed by
-        self.seen_map = np.zeros(self.size, dtype=int)
+        # 0: unknown | 1: lidar | 2: camera | 3: totally explored
+        self.seen_map = np.empty(self.size, dtype=object)
+        for x in range(self.size[0]):
+            for y in range(self.size[1]):
+                self.seen_map[x, y] = [0, [0, 0]]
 
 
     def expand(self, point):
@@ -35,7 +38,8 @@ class Map:
                 for y in range(np.size(self.map, 1)): self.map[0, y] = [0]
                 self.extra_map = np.insert(self.extra_map, 0, None, axis=0)
                 for y in range(np.size(self.extra_map, 1)): self.extra_map[0, y] = [0]
-                self.seen_map = np.insert(self.seen_map, 0, 0, axis=0)
+                self.seen_map = np.insert(self.seen_map, 0, None, axis=0)
+                for y in range(np.size(self.seen_map, 1)): self.seen_map[0, y] = [0, [0, 0]]
                 self.range_x[0] = self.range_x[0] - self.resolution
                 dif_map_x = dif_map_x - 1
 
@@ -46,7 +50,8 @@ class Map:
                 for y in range(np.size(self.map, 1)): self.map[np.size(self.map, 0)-1, y] = [0]
                 self.extra_map = np.insert(self.extra_map, np.size(self.extra_map, 0), None, axis=0)
                 for y in range(np.size(self.extra_map, 1)): self.extra_map[np.size(self.extra_map, 0)-1, y] = [0]
-                self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 0), 0, axis=0)
+                self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 0), None, axis=0)
+                for y in range(np.size(self.seen_map, 1)): self.seen_map[np.size(self.seen_map, 0)-1, y] = [0, [0, 0]]
                 self.range_x[1] = self.range_x[1] + self.resolution
                 dif_map_x = dif_map_x - 1
 
@@ -57,7 +62,8 @@ class Map:
                 for x in range(np.size(self.map, 0)): self.map[x, 0] = [0]
                 self.extra_map = np.insert(self.extra_map, 0, None, axis=1)
                 for x in range(np.size(self.extra_map, 0)): self.extra_map[x, 0] = [0]
-                self.seen_map = np.insert(self.seen_map, 0, 0, axis=1)
+                self.seen_map = np.insert(self.seen_map, 0, None, axis=1)
+                for x in range(np.size(self.seen_map, 0)): self.seen_map[x, 0] = [0, [0, 0]]
                 self.range_y[0] = self.range_y[0] - self.resolution
                 dif_map_y = dif_map_y - 1
 
@@ -68,7 +74,8 @@ class Map:
                 for x in range(np.size(self.map, 0)): self.map[x, np.size(self.map, 1)-1] = [0]
                 self.extra_map = np.insert(self.extra_map, np.size(self.extra_map, 1), None, axis=1)
                 for x in range(np.size(self.extra_map, 0)): self.extra_map[x, np.size(self.extra_map, 1)-1] = [0]
-                self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 1), 0, axis=1)
+                self.seen_map = np.insert(self.seen_map, np.size(self.seen_map, 1), None, axis=1)
+                for x in range(np.size(self.seen_map, 0)): self.seen_map[x, np.size(self.extra_map, 1)-1] = [0, [0, 0]]
                 self.range_y[1] = self.range_y[1] + self.resolution
                 dif_map_y = dif_map_y - 1
 
@@ -102,7 +109,7 @@ class Map:
         return
     
 
-    def add_extra(self, point, type):
+    def add_extra(self, point, type, dir):
         if point == [1000, 1000]: return
 
         self.expand(point)
@@ -112,7 +119,7 @@ class Map:
         for v in self.extra_map[mapx, mapy]:
             if v != 0 and type == v[1] and self.dist_coords(point, v[0]) < 0.02:
                 return
-        self.extra_map[mapx, mapy].append([point, type])
+        self.extra_map[mapx, mapy].append([point, type, dir])
 
         return
 
@@ -137,11 +144,16 @@ class Map:
         return closest
 
 
-    def seen(self, point):
+    def seen(self, point, ang):
         mapx, mapy = self.real_to_map(point)
         if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
-            if self.seen_map[mapx, mapy] == 0:
-                self.seen_map[mapx, mapy] = 2
+            if self.seen_map[mapx, mapy][0] == 0: self.seen_map[mapx, mapy] = [2, [ang, ang]]
+
+            self.seen_map[mapx, mapy][1][0] = min(self.seen_map[mapx, mapy][1][0], ang)
+            self.seen_map[mapx, mapy][1][1] = max(self.seen_map[mapx, mapy][1][1], ang)
+
+            if min(self.seen_map[mapx, mapy][1][1]-self.seen_map[mapx, mapy][1][0], 2*math.pi-(self.seen_map[mapx, mapy][1][1]-self.seen_map[mapx, mapy][1][0])) > math.pi/2:
+                self.seen_map[mapx, mapy][0] = 3
 
         return
     
@@ -149,7 +161,7 @@ class Map:
     def explored(self, point):
         mapx, mapy = self.real_to_map(point)
         if mapx >= 0 and mapy >= 0 and mapx < np.size(self.seen_map, 0) and mapy < np.size(self.seen_map, 1):
-            self.seen_map[mapx, mapy] = 3
+            self.seen_map[mapx, mapy][0] = 3
 
         return
     
@@ -305,8 +317,8 @@ class Map:
                         continue
                     coords = p[0]
                     tipo = p[1]
+                    dir = p[2]
                     if str(tipo) in wallTokens:
-                        dir = coords[2]
                         """
                         012
                         345
@@ -874,7 +886,7 @@ class Map:
         for y in range(np.size(self.extra_map, 1)):
             for x in range(np.size(self.extra_map, 0)):
                 for i in range(1, len(self.extra_map[x, y])):
-                    [[a, b], c] = self.extra_map[x, y][i]
+                    [[a, b], c, d] = self.extra_map[x, y][i]
 
                     rgb = [0, 0, 0]
                     if c == 'b': rgb = [0, 0, 255]
@@ -904,7 +916,7 @@ class Map:
 
         for y in range(np.size(self.seen_map, 1)):
             for x in range(np.size(self.seen_map, 0)):
-                if self.seen_map[x, np.size(self.seen_map, 1)-1-y] > 0:
+                if self.seen_map[x, np.size(self.seen_map, 1)-1-y][0] == 3:
                     transpose[y, x] = 1
 
         s = 'explored.png'

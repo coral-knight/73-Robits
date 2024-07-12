@@ -260,6 +260,11 @@ class Robot:
             action_list = self.navigation.navigate()
             for action in action_list:
                 if action[0] == "exit":
+                    self.map.add_extra([-0.03, -0.03], 5, 0)
+                    self.map.add_extra([0.03, -0.03], 5, 0)
+                    self.map.add_extra([-0.03, 0.03], 5, 0)
+                    self.map.add_extra([0.03, 0.03], 5, 0)
+
                     definitive_map = np.array(self.map.print_tile_map())
                     print("definitive_map")
                     print(definitive_map)

@@ -13,7 +13,7 @@ class Lidar:
 
         # Hardware
         self.lidar = self.hardware.getDevice("lidar")
-        self.lidar.enable(self.time_step*5)
+        self.lidar.enable(self.time_step)
         self.lidar.enablePointCloud()
 
         # Variables 
@@ -64,11 +64,11 @@ class Lidar:
 
             # Conditions to mark wall
             if self.dist_coords(self.gps.last, [coordX, coordY]) < 0.98:
-                if (dist_ant < 0.015) or (dist_prox < 0.015) or (dist_ap < 0.03):
+                if (dist_ant < 0.008) or (dist_prox < 0.008) or (dist_ap < 0.03):
 
                     # Get the bottom of the cone if it appears on 3 layers of ray
                     if (i > 384 or i < 128) and abs(coordZ_3 - (-0.066)) > 0.006 and self.dist_coords(self.gps.last, [coordX_3, coordY_3]) < 0.3:
-                         if (dist_ant_3 < 0.015) or (dist_prox_3 < 0.015) or (dist_ap_3 < 0.03):
+                         if (dist_ant_3 < 0.008) or (dist_prox_3 < 0.008) or (dist_ap_3 < 0.03):
 
                             if self.dist_coords(self.gps.last, [coordX_1, coordY_1]) < 0.98 and self.dist_coords([coordX, coordY], [coordX_3, coordY_3]) < 0.01:
                                 ang_x_1, ang_y_1 = math.atan2(coordX_1-coordX, coordZ_1-coordZ), math.atan2(coordY_1-coordY, coordZ_1-coordZ)

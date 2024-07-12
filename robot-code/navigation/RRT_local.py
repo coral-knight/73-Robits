@@ -107,16 +107,10 @@ class RRTLocal:
 
     def angle_point(self, gps, i):
         angle = (i * 0 + (47-i) * 2 * math.pi) / 47
-
-        #dist_percent = generator.random()
-        #dist = 0.03 * dist_percent + 0.06 * (1-dist_percent)
-
-        dist = 0.03
+        dist = 0.02
 
         x = gps[0] + dist * math.cos(angle)
         y = gps[1] + dist * math.sin(angle)
-
-        #print("local random point", [x, y], "from", gps)
 
         return [x, y]
 
@@ -284,26 +278,15 @@ class RRTLocal:
                 p = self.real_to_map(point)
                 g = self.graph[p[0], p[1]]
 
-                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.025 for u in g[1:])):
+                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.015 for u in g[1:])):
                     parent, _ = self.add_graph(point)
                     if parent == [1000, 1000]: continue
 
-                    #print("added")
-
-                    map_p = self.map.real_to_map(point)
+                    x, y = self.map.real_to_map(point)
                     information_gain = 0
-                    if map_p[0] >= 0 and map_p[0] < np.size(self.map.map, 0) and map_p[1] >= 0 and map_p[1] < np.size(self.map.map, 1) and self.map.seen_map[map_p[0], map_p[1]] == 0:
-                        for x in range(map_p[0]-1, map_p[0]+2):
-                            for y in range(map_p[1]-1, map_p[1]+2):
-                                if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1):
-                                    if self.map.seen_map[x, y] == 0: information_gain += 1
+                    if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1) and self.map.seen_map[x, y][0] != 3:
+                        if self.map.seen_map[x, y][0] != 3: self.unexplored.append([point, information_gain]) 
 
-                    if information_gain > 0:
-                        #print("inexplorado", point, parent)
-                        #print("information gain", information_gain)
-
-                        self.unexplored.append([point, information_gain]) 
-                        
                     new.append(point)
                     self.explore_bfs.append(point)
 
@@ -401,7 +384,7 @@ class RRTLocal:
             for y in range(-1, 2):
                 if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                     for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                        if v != 0 and self.dist_coords(pos, v) < 0.038:
+                        if v != 0 and self.dist_coords(pos, v) < 0.037:
                             return False
                         
         return True
@@ -421,7 +404,7 @@ class RRTLocal:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.038 and self.dist_coords(self.initial_pos, p) > 0.036:
+                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(self.initial_pos, p) > 0.036:
                                 return True
                 
         return False

@@ -51,8 +51,8 @@ class Sensors:
 
             if current_tick % 20 == 0 and self.camera.c_initial_tick == True and turning == False:
                 #self.camera.identify_token(self.camera.joint_image(), "left")
-                #self.camera.update_token(current_tick)
-                self.camera.update_ground()
+                self.camera.update_token(current_tick)
+                #self.camera.update_ground()
                 #self.camera.print_list()        
 
         for i in range(-1, 2):

@@ -90,6 +90,7 @@ class Camera:
             self.c_identified = False
             self.c_type = 'N'
             self.c_close = False
+            self.c_initial_position = [0, 0]
             self.c_sent = 0
             self.c_timer = 0
             self.c_back = False 
@@ -213,15 +214,23 @@ class Camera:
 
                 if abs(left_count - right_count) < 6: 
                     navigation.speed(0, 0)
+                    self.c_initial_position = self.gps.last
                     self.c_centered_center = True
 
             # Get closer to send the right token
             elif not self.c_close:  
                 print("get closer")
                 navigation.speed(navigation.turn_velocity, navigation.turn_velocity)
-                if self.lidar.ray_dist(0, current_tick) < 0.05:
-                    print("done")
-                    self.c_close = True
+
+                ray_left, ray_right = 412, 100
+                ray = ray_left
+                while ray != ray_right:
+                    if self.lidar.ray_dist(ray, current_tick) < 0.039 or self.lidar.ray_front_dist(ray, current_tick) < 0.015:
+                        print("done")
+                        self.c_close = True
+                        break
+                    ray += 1
+                    if ray == 511: ray = 0
 
             # Send the token with emitter
             elif self.c_sent <= 0: 
@@ -231,6 +240,12 @@ class Camera:
 
                 if self.c_sent != -1 and self.c_timer*self.time_step > 1500:
                     dist = self.lidar.ray_front_dist(0, current_tick)
+                    dist_e = self.lidar.ray_coords(509, 2, current_tick)
+                    dist_d = self.lidar.ray_coords(2, 2, current_tick)
+
+                    dir = 0
+                    if(abs(dist_e[1] - dist_d[1]) >= abs(dist_e[0] - dist_d[0])): dir = 1
+
                     sign_coords = [self.gps.front[0] + dist * math.cos(self.gyro.last), self.gps.front[1] + dist * math.sin(self.gyro.last)]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("time to send")
@@ -241,7 +256,7 @@ class Camera:
                     message = struct.pack("i i c", int((sign_coords[0]+self.gps.initial[0])*100), int((-sign_coords[1]+self.gps.initial[2])*100), sign_type)
                     self.emitter.send(message)
 
-                    self.map.add_extra(sign_coords, self.c_type)
+                    self.map.add_extra(sign_coords, self.c_type, dir)
 
                     self.c_id = self.closest_token(sign_coords)
                     self.c_sent = -1
@@ -254,7 +269,8 @@ class Camera:
             elif not self.c_back:  
                 print("get back")
                 navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
-                if self.lidar.ray_dist(0, current_tick) > 0.055:
+
+                if self.dist_coords(self.c_initial_position, self.gps.last) < 0.005:
                     self.c_back = True
                     self.c_end = True
                     print("done")
@@ -555,23 +571,20 @@ class Camera:
         ray = ray_left
         while ray != ray_right:
             [coordX, coordY] = self.lidar.ray_coords(ray, 2, current_tick)
+            ang = (511-ray) * 2*math.pi/511 + self.gyro.last
+            if ang > math.pi: ang -= 2*math.pi
 
             max_dist = 0.24
             dist = self.dist_coords(self.gps.front, [coordX, coordY])
             if dist > max_dist or math.isnan(dist):
-                ang = (511-ray) * 2*math.pi/511
-                if ang > math.pi: ang -= 2*math.pi
-                coordX = self.gps.front[0] + max_dist * math.cos(self.gyro.last + ang)
-                coordY = self.gps.front[1] + max_dist * math.sin(self.gyro.last + ang)
+                coordX = self.gps.front[0] + max_dist * math.cos(ang)
+                coordY = self.gps.front[1] + max_dist * math.sin(ang)
                 dist = max_dist
 
             d = int(dist/0.04) if int(dist/0.04) > 0 else 1
             for i in range(d+1): 
                 [x, y] = [((d-i)*self.gps.front[0]+i*coordX)/d, ((d-i)*self.gps.front[1]+i*coordY)/d]
-                if self.dist_coords([x, y],  self.map.closest([x, y], 1)) > 0.023:
-                    self.map.seen([x, y])
-                else:
-                    continue
+                self.map.seen([x, y], ang)
 
             ray += 1
             if ray == 511: ray = 0
@@ -862,7 +875,7 @@ class Camera:
                 if not all(([a, b] == [i, j] or abs(b - j) > 3) for [a, b] in ground):
                     [coord_X, coord_Y] = self.pixel_ground_position([i, j-1])
                     self.map.add_obstacle([coord_X, coord_Y])
-                    self.map.add_extra([coord_X, coord_Y], 'ob')
+                    self.map.add_extra([coord_X, coord_Y], 'ob', 0)
                     print("added obstacle", [i, j], [coord_X, coord_Y])'''
 
         return obstacle
@@ -906,7 +919,7 @@ class Camera:
                             minx, maxx = t[0]-(a/100), t[0]+(a/100)
                             miny, maxy = t[1]-(a/100), t[1]+(a/100)
                             coord = [(((a-1)-i)*minx+i*maxx)/(a-1), (((a-1)-j)*miny+j*maxy)/(a-1)]
-                            self.map.add_extra(coord, g_colour)
+                            self.map.add_extra(coord, g_colour, 0)
                             if g_colour == 'bh': self.map.add_obstacle(coord)
                 
         return
