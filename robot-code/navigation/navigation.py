@@ -297,7 +297,7 @@ class Navigation:
                     for j in range(5):
                         coord = [((4-i)*minx+i*maxx)/4, ((4-j)*miny+j*maxy)/4]
                         self.map.add_obstacle(coord)
-                        self.map.add_extra(coord, 'bh')
+                        self.map.add_extra(coord, 'bh', 0)
             else: print("STUCK")
 
         self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1], self.sensors.gyro.last_front, self.sensors.gyro.last_side]

@@ -36,9 +36,9 @@ class Sensors:
         #self.distance.update()
 
         if max(abs(self.gyro.last_front), abs(self.gyro.last_side)) > 0.007:
-            print("ROTATED", self.gyro.last_front, self.gyro.last_side)
+            #print("ROTATED", self.gyro.last_front, self.gyro.last_side)
             if self.dist_coords(self.gps.last, self.rot_initial_pos) > 0.03:
-                print("FIXED")
+                #print("FIXED")
                 self.gyro.last_front, self.gyro.last_side = 0, 0
         else: self.rot_initial_pos = self.gps.last 
 
@@ -49,10 +49,10 @@ class Sensors:
             if current_tick % 10 == 0:
                 self.camera.seen(current_tick)
 
-            if current_tick % 20 == 0 and self.camera.c_initial_tick == True and turning == False:
+            if current_tick % 10 == 0 and self.camera.c_initial_tick == True and turning == False:
                 #self.camera.identify_token(self.camera.joint_image(), "left")
                 self.camera.update_token(current_tick)
-                #self.camera.update_ground()
+                self.camera.update_ground()
                 #self.camera.print_list()        
 
         for i in range(-1, 2):

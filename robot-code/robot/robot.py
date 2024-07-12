@@ -248,6 +248,7 @@ class Robot:
                 print("achou final", cont)
                 if cont == 10000: 
                     print("éhh......", [0, 0])
+                    self.final_rrt.print()
                     self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                     self.navigation.explored = False
                 if cont < 10000: 

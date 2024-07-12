@@ -106,7 +106,7 @@ class RRTLocal:
 
 
     def angle_point(self, gps, i):
-        angle = (i * 0 + (47-i) * 2 * math.pi) / 47
+        angle = (i * 0 + (48-i) * 2 * math.pi) / 48
         dist = 0.02
 
         x = gps[0] + dist * math.cos(angle)
@@ -278,7 +278,7 @@ class RRTLocal:
                 p = self.real_to_map(point)
                 g = self.graph[p[0], p[1]]
 
-                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.015 for u in g[1:])):
+                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.01 for u in g[1:])):
                     parent, _ = self.add_graph(point)
                     if parent == [1000, 1000]: continue
 
