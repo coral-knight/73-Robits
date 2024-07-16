@@ -105,8 +105,8 @@ class RRTLocal:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
-    def angle_point(self, gps, i):
-        angle = (i * 0 + (48-i) * 2 * math.pi) / 48
+    def angle_point(self, gps, i, t):
+        angle = (i * 0 + (t-i) * 2 * math.pi) / t
         dist = 0.02
 
         x = gps[0] + dist * math.cos(angle)
@@ -271,20 +271,20 @@ class RRTLocal:
 
             #print("current", cur)
 
-            for i in range(48):
-                if i < 48: point = self.angle_point(cur, i)
-                else: point = self.random_point(cur, i)
+            max_points = 72
+            for i in range(max_points):
+                point = self.angle_point(cur, i, max_points)
 
                 p = self.real_to_map(point)
                 g = self.graph[p[0], p[1]]
 
-                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.01 for u in g[1:])):
+                if self.no_obstacle(point) and (len(g) <= 1 or all(self.dist_coords(point, u[0]) > 0.015 for u in g[1:])):
                     parent, _ = self.add_graph(point)
                     if parent == [1000, 1000]: continue
 
                     x, y = self.map.real_to_map(point)
                     information_gain = 0
-                    if x >= 0 and x < np.size(self.map.map, 0) and y >= 0 and y < np.size(self.map.map, 1) and self.map.seen_map[x, y][0] != 3:
+                    if x >= 0 and x < np.size(self.map.seen_map, 0) and y >= 0 and y < np.size(self.map.seen_map, 1) and self.map.seen_map[x, y][0] != 3:
                         if self.map.seen_map[x, y][0] != 3: self.unexplored.append([point, information_gain]) 
 
                     new.append(point)
@@ -384,7 +384,7 @@ class RRTLocal:
             for y in range(-1, 2):
                 if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                     for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                        if v != 0 and self.dist_coords(pos, v) < 0.037:
+                        if v != 0 and self.dist_coords(pos, v[0]) < 0.037:
                             return False
                         
         return True
@@ -404,7 +404,7 @@ class RRTLocal:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(self.initial_pos, p) > 0.036:
+                            if v != 0 and self.dist_coords(p, v[0]) < 0.037 and self.dist_coords(self.initial_pos, p) > 0.036:
                                 return True
                 
         return False

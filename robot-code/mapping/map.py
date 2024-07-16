@@ -94,7 +94,7 @@ class Map:
                 self.range_y[0]+map_point[1]*self.resolution+self.resolution/2]
 
 
-    def add_obstacle(self, point):
+    def add_obstacle(self, point, type):
         if point == [1000, 1000]: return
 
         self.expand(point)
@@ -102,9 +102,9 @@ class Map:
         mapx, mapy = self.real_to_map(point)
 
         for v in self.map[mapx, mapy]:
-            if v != 0 and self.dist_coords(point, v) < 0.005:
+            if v != 0 and self.dist_coords(point, v[0]) < 0.005:
                 return
-        self.map[mapx, mapy].append(point)
+        self.map[mapx, mapy].append([point, type])
 
         return
     
@@ -209,7 +209,7 @@ class Map:
         # Ground Tiles
         xMod2 = self.real_to_map([-0.03, -0.03])[0] %2
         yMod2 = self.real_to_map([-0.03, -0.03])[1] %2
-        coordBuracos = []
+        #coordBuracos = []
         for x in range(xMod2, np.size(self.extra_map, 0)-1, 2):
             for y in range(yMod2, np.size(self.extra_map, 1)-1, 2):
                 contCor = {}
@@ -234,9 +234,9 @@ class Map:
 
                         if(cor == 'bh'):
                             cor = 2
-                            inicioDoTile = [int((coords[0] + 0.06)/0.12)*0.12-0.05, int((coords[1] - 0.06)/0.12)*0.12-0.05]
-                            finalDoTile = [int((coords[0] + 0.06)/0.12)*0.12+0.05, int((coords[1] - 0.06)/0.12)*0.12+0.05]
-                            coordBuracos.append([inicioDoTile, finalDoTile])
+                            #inicioDoTile = [int((coords[0] + 0.06)/0.12)*0.12-0.051, int((coords[1] - 0.06)/0.12)*0.12-0.051]
+                            #finalDoTile = [int((coords[0] + 0.06)/0.12)*0.12+0.051, int((coords[1] - 0.06)/0.12)*0.12+0.051]
+                            #coordBuracos.append([inicioDoTile, finalDoTile])
                             # set.add(tuple([inicioDoTile, finalDoTile]))
                             # detecta a pos dele e salva num set
                         
@@ -263,7 +263,7 @@ class Map:
                     mapa_ground[int(xTile), int(yTile)] = maisCor
         print("Mapa ground:")
         print(mapa_ground)
-        print("CoordBuracos", coordBuracos)
+        #print("CoordBuracos", coordBuracos)
         # Transforma para uma lista
         # listaCoordBuracos = list(coordBuracos)
         # Paredes
@@ -274,15 +274,16 @@ class Map:
         for x in range(np.size(self.map, 0)):
             for y in range(np.size(self.map, 1)):
                 for p in self.map[x, y]:
-                    if p == 0:
+                    if p == 0 or p[1] == -1:
                         continue
+                    p = p[0]
                     # Checa se tiver dentro de um buraco
                     dentroDoBuraco = False
-                    for buraco in coordBuracos:
-                        if(p[0] >= buraco[0][0] and p[0] <= buraco[1][0] and p[1] >= buraco[0][1] and p[1] <= buraco[1][1]): dentroDoBuraco = True
-                    if dentroDoBuraco:
-                        print("Tirou buraco")
-                        continue
+                    #for buraco in coordBuracos:
+                    #    if(p[0] >= buraco[0][0] and p[0] <= buraco[1][0] and p[1] >= buraco[0][1] and p[1] <= buraco[1][1]): dentroDoBuraco = True
+                    #if dentroDoBuraco:
+                    #    print("Tirou buraco")
+                    #    continue
                     # print("P:", p)
                     # array de 9 elementos
                     """
@@ -880,7 +881,7 @@ class Map:
         for y in range(np.size(self.map, 1)):
             for x in range(np.size(self.map, 0)):
                 for i in range(1, len(self.map[x, y])):
-                    [a, b] = self.map[x, y][i]
+                    [a, b] = self.map[x, y][i][0]
                     tile_map[int((a-self.range_x[0])/0.01), int((b-self.range_y[0])/0.01)] = [255, 255, 255]
 
         for y in range(np.size(self.extra_map, 1)):

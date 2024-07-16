@@ -84,13 +84,14 @@ class Robot:
 
 
         # Check if there's signs that the robot can safely go walking a straight path
-        if self.current_tick % 20 == 0 and not self.navigation.explored and not self.navigation.collecting and not self.navigation.walk_collect:
+        if (self.current_tick % 20 == 0 or not self.navigation.exploring) and not self.navigation.explored and not self.navigation.collecting and not self.navigation.walk_collect:
+            collectable = []
             for sign in self.sensors.camera.sign_list:
                 # sign = [[x_right-x_left], [pos], [left point pos], [right point pos], [ang_min, ang_max]]
 
                 # Create [x, y] slightly away from the sign's wall (vectors)
                 [a, b] = sign[1]
-                if self.dist_coords(self.sensors.gps.last, [a, b]) > 0.24: continue
+                if self.dist_coords(self.sensors.gps.last, [a, b]) > 0.12: continue
 
                 [ae, be] = sign[2]
                 [ad, bd] = sign[3]
@@ -98,7 +99,7 @@ class Robot:
                 vi = [ad-ae, bd-be]
                 u = [vi[1], -1*vi[0]]
 
-                w = [vi[0] * (0.03 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.03 / math.sqrt(vi[0]**2 + vi[1]**2))]
+                w = [vi[0] * (0.033 / math.sqrt(vi[0]**2 + vi[1]**2)), vi[1] * (0.033 / math.sqrt(vi[0]**2 + vi[1]**2))]
                 uw = [w[1], -1*w[0]]
 
                 w2 = [-1*w[0], -1*w[1]]
@@ -123,7 +124,7 @@ class Robot:
                 #print("angles", ang, ang_min, ang_max)
 
                 # Check **if it's on the right side of the wall** and if there's no wall between
-                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
+                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.2 and 2*math.pi-abs(ang-ang_min) > 0.2) and (abs(ang-ang_max) > 0.2 and 2*math.pi-abs(ang-ang_max) > 0.2):
                     #print("right angle")
 
                     if not self.wall_between(self.sensors.gps.last, [x, y]): x, y = x, y
@@ -133,9 +134,15 @@ class Robot:
 
                     if [x, y] != [1000,1000]:
                         print("sem parede", sign)
-                        self.navigation.exploring = True
-                        self.navigation.append_list([x, y], 2)
-                        break
+                        collectable.append([x, y])
+
+            closest = [1000, 1000]
+            for c in collectable: 
+                if self.dist_coords(self.sensors.gps.last, c) < self.dist_coords(self.sensors.gps.last, closest): closest = c
+
+            if closest != [1000, 1000]: 
+                self.navigation.exploring = True
+                self.navigation.append_list(closest, 2)
 
 
         # Find a new point on the RRTs to go 
@@ -162,7 +169,7 @@ class Robot:
                 
             print("cont", cont)
             print("len local", len(local_unexplored))
-            local_rrt.print()
+            #local_rrt.print()
 
             if len(local_unexplored) == 0 : 
                 print("TERMINOU DE EXPLORAR")
@@ -248,10 +255,11 @@ class Robot:
                 print("achou final", cont)
                 if cont == 10000: 
                     print("éhh......", [0, 0])
-                    self.final_rrt.print()
+                    #self.final_rrt.print()
                     self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                     self.navigation.explored = False
                 if cont < 10000: 
+                    self.final_rrt.print()
                     self.final_rrt.connect([0, 0], parent)
                     self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
@@ -260,7 +268,10 @@ class Robot:
         if not self.navigation.collecting and self.navigation.exploring:
             action_list = self.navigation.navigate()
             for action in action_list:
-                if action[0] == "exit":
+                if action[0] == "exit" or self.sensors.receiver.remaining_simulation_time <= 3 or self.sensors.receiver.remaining_real_time <= 3:
+                    print("ENDING ==================================================")
+                    print("remaining time", self.sensors.receiver.remaining_simulation_time, self.sensors.receiver.remaining_real_time)
+
                     self.map.add_extra([-0.03, -0.03], 5, 0)
                     self.map.add_extra([0.03, -0.03], 5, 0)
                     self.map.add_extra([-0.03, 0.03], 5, 0)
@@ -317,7 +328,7 @@ class Robot:
             for y in range(-1, 2):
                 if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                     for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                        if v != 0 and self.dist_coords(pos, v) < 0.037:
+                        if v != 0 and self.dist_coords(pos, v[0]) < 0.037:
                             return False
                         
         return True
@@ -337,8 +348,8 @@ class Robot:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.036:
-                                print("parede", v, self.dist_coords(p, v))
+                            if v != 0 and self.dist_coords(p, v[0]) < 0.036:
+                                #print("parede", v, self.dist_coords(p, v[0]))
                                 return True
                 
         return False

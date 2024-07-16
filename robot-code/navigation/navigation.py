@@ -71,9 +71,12 @@ class Navigation:
             else:
                 print("terminou andar, argument: ", arg)
                 self.stuck = 0
+                self.stuck_counter = 0
                 self.action_list.pop(0)
 
-                if arg == 2: self.collecting = True # collectable sign
+                if arg == 2: 
+                    self.walk_collect = False
+                    self.collecting = True
                 if self.ending and self.dist_coords(self.sensors.gps.last, [0, 0]) <= 0.005: return[["exit"]]
                 return [["nothing"]]
 
@@ -117,11 +120,11 @@ class Navigation:
                         if abs(self.sensors.gyro.last_side) > 0.02: 
                             coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
                             coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last + self.sensors.gyro.last_side/abs(self.sensors.gyro.last_side) * math.pi/2)
-                            self.map.add_extra([coordX, coordY], 'bh')
+                            self.map.add_extra([coordX, coordY], 'bh', 0)
                         else: 
                             coordX = self.sensors.gps.last[0] + 0.037 * math.cos(self.sensors.gyro.last)
                             coordY = self.sensors.gps.last[1] + 0.037 * math.sin(self.sensors.gyro.last)
-                        self.map.add_obstacle([coordX, coordY])
+                        self.map.add_obstacle([coordX, coordY], -1)
 
                         print("adding obstacle", [coordX, coordY])
 
@@ -135,7 +138,6 @@ class Navigation:
                     return [["nothing"]]
                 
                 if arg == 2: self.walk_collect = True
-                else: self.walk_collect = False
                 
                 return self.walk_to(action, arg)
 
@@ -154,14 +156,14 @@ class Navigation:
         else: p, v = 0, len(self.action_list)-1
         aux_list = [["Walk To", self.sensors.gps.last]]
 
-        print("smoothing", v, "walks")
+        #print("smoothing", v, "walks")
 
         cont = 0
         while p != v and cont < 3000:
             cont += 1
             a, b = self.action_list[p][1], self.action_list[v][1]
             if not self.smooth_wall_between(a, b) or p == v-1:
-                print("can go from", p, "to", v)
+                #print("can go from", p, "to", v)
                 aux_list.append(self.action_list[v])
                 p, v = v, len(self.action_list)-1
             else: 
@@ -181,7 +183,6 @@ class Navigation:
 
         point = last[0]
         pos = last[1]
-        print("teste", pos, graph[pos[0][0]][pos[0][1]])
         level = self.total_level(graph, pos)
         walk_list = []
 
@@ -190,15 +191,15 @@ class Navigation:
         unlevel = self.total_level(graph, unpos)
         unwalk_list = []
 
-        print(pos, unpos)
-        print(level, unlevel)
+        #print(pos, unpos)
+        #print(level, unlevel)
 
         a = 0
         while level > unlevel and a < 2000:
             pos = self.graph_parent(graph, pos) # Graph position of the parent
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] # Coordinates of the parent
 
-            print("add walk", point)
+            #print("add walk", point)
             walk_list.insert(0, point)
 
             level -= 1
@@ -208,7 +209,7 @@ class Navigation:
 
         b = 0
         while unlevel > level and b < 2000:
-            print("add unwalk", unpoint)
+            #print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
             unpos = self.graph_parent(graph, unpos) # Graph position of the parent
@@ -219,11 +220,11 @@ class Navigation:
             b += 1
         if b == 2000: print("WHILE UNWALK_LIST")
 
-        print("level igual")
+        #print("level igual")
 
         cont = 0
         while point != unpoint and cont < 2000:
-            print("add unwalk", unpoint)
+            #print("add unwalk", unpoint)
             unwalk_list.append(unpoint)
 
             unpos = self.graph_parent(graph, unpos)
@@ -232,20 +233,20 @@ class Navigation:
             pos = self.graph_parent(graph, pos)
             point = graph[pos[0][0]][pos[0][1]][pos[1]][0] 
 
-            print("add walk", point)
+            #print("add walk", point)
             walk_list.insert(0, point)
 
             cont += 1
         if cont == 2000: print("WHILE TOGETHER SOLVE")
 
 
-        print("walk do atual")
-        for w in walk_list:
-            print(w)
+        #print("walk do atual")
+        #for w in walk_list:
+            #print(w)
 
-        print("walk do unexplored")
-        for w in unwalk_list:
-            print(w)
+        #print("walk do unexplored")
+        #for w in unwalk_list:
+            #print(w)
 
         #walk_list = unwalk_list + walk_list
 
@@ -269,11 +270,12 @@ class Navigation:
         lop = False
         self.sensors.gps.update()
 
-        if self.dist_coords(self.sensors.gps.last, self.last_pos[0]) > 0.003:
+        if self.dist_coords(self.sensors.gps.last, self.last_pos[0]) > 0.03:
             print("=== LOP LOP LOP LOP LOP ===")
             lop = True
 
-            if abs(self.last_pos[1] - (-0.02175)) > 0.001:
+            print(self.last_pos[1], abs(self.last_pos[1] - (-0.02175)))
+            if abs(self.last_pos[1] - (-0.02175)) > 0.003:
                 print("BLACKHOLE")
 
                 ang_front, ang_side = self.last_pos[2], self.last_pos[3]
@@ -296,7 +298,7 @@ class Navigation:
                 for i in range(5):
                     for j in range(5):
                         coord = [((4-i)*minx+i*maxx)/4, ((4-j)*miny+j*maxy)/4]
-                        self.map.add_obstacle(coord)
+                        self.map.add_obstacle(coord, -1)
                         self.map.add_extra(coord, 'bh', 0)
             else: print("STUCK")
 
@@ -355,8 +357,8 @@ class Navigation:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.0366 and self.dist_coords(a, p) > 0.036:
-                                print("parede", v, self.dist_coords(p, v))
+                            if v != 0 and self.dist_coords(p, v[0]) < 0.0368 and self.dist_coords(a, p) > 0.036:
+                                print("parede", v, self.dist_coords(p, v[0]))
                                 return True
                 
         return False
@@ -376,8 +378,8 @@ class Navigation:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.037 and self.dist_coords(a, p) > 0.036:
-                                print("smooth parede", v, self.dist_coords(p, v))
+                            if v != 0 and self.dist_coords(p, v[0]) < 0.037 and self.dist_coords(a, p) > 0.036:
+                                #print("smooth parede", v, self.dist_coords(p, v[0]))
                                 return True
                 
         return False

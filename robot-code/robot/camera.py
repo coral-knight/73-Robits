@@ -16,12 +16,14 @@ class Camera:
         self.map = map
 
         # Hardware
+        self.update_rate = 5
+
         self.camera_left = self.hardware.getDevice("camera1")
-        self.camera_left.enable(self.time_step*5)
+        self.camera_left.enable(self.time_step*self.update_rate)
         self.camera_left.setFov(1.5)
         
         self.camera_right = self.hardware.getDevice("camera2")
-        self.camera_right.enable(self.time_step*5)
+        self.camera_right.enable(self.time_step*self.update_rate)
         self.camera_right.setFov(1.5)
 
         # Variables
@@ -35,6 +37,7 @@ class Camera:
         self.c_initial_tick = True
         self.c_end = False
         self.c_side = "none"
+        self.c_stuck_timer = 0 
 
         self.c_found_side = False
         self.c_centered_side = False
@@ -61,7 +64,7 @@ class Camera:
                 [ang_min, ang_max] = sign[4]
 
                 # Check if it's on the right side of the wall
-                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.47 and 2*math.pi-abs(ang-ang_min) > 0.47) and (abs(ang-ang_max) > 0.47 and 2*math.pi-abs(ang-ang_max) > 0.47):
+                if ((ang_min >= 0 and (ang > ang_min or ang < ang_max)) or (ang_min < 0 and ang > ang_min and ang < ang_max)) and (abs(ang-ang_min) > 0.2 and 2*math.pi-abs(ang-ang_min) > 0.2) and (abs(ang-ang_max) > 0.2 and 2*math.pi-abs(ang-ang_max) > 0.2):
                     print("right side of wall")
                     closest = [i, self.dist_coords(coords, sign[1])]
 
@@ -70,8 +73,8 @@ class Camera:
 
     def collect(self, navigation, current_tick):
         # Controller for all components and actions of the Collect function
-
         img, hsv_img = self.joint_image()
+        self.c_stuck_timer += 1
         
         if self.c_initial_tick:
             print("=======\nCollect")
@@ -81,6 +84,7 @@ class Camera:
             self.c_turn_velocity = navigation.turn_velocity-1.5
             self.c_initial_tick = False
             self.c_side = "none"
+            self.c_stuck_timer = 0
 
             self.c_found_side = False
             self.c_centered_side = False
@@ -97,6 +101,22 @@ class Camera:
 
             self.camera_left.enable(self.time_step)
             self.camera_right.enable(self.time_step)
+
+        if self.c_stuck_timer >= 10000:
+            self.c_stuck_timer = 0
+            if self.c_identified:
+                print("stuck but already identified")
+                self.c_found_center, self.c_centered_center, self.c_close = True, True, True
+                self.c_stuck_timer = 0
+            else:
+                print("stuck while not identified", self.sign_list[self.c_id][5])
+                if self.sign_list[self.c_id][5] == 1: self.c_end = True
+                else: 
+                    self.c_initial_tick = True
+                    self.c_end = False
+                    self.camera_left.enable(self.time_step*5)
+                    self.camera_right.enable(self.time_step*5)
+                    return False
 
         if not self.c_end:
             # Align token with a camera
@@ -131,6 +151,7 @@ class Camera:
                     if self.lidar.ray_dist(ray, current_tick) > 0.1: 
                         self.c_end = True
                     
+                    self.c_stuck_timer = 0
                     self.c_found_side = True
 
             # Center the token within a camera image
@@ -171,6 +192,7 @@ class Camera:
                         self.c_id = self.closest_token(token_coords)
                         self.sign_list[self.c_id][1] = token_coords
 
+                    self.c_stuck_timer = 0
                     self.c_centered_side = True
 
             # Identify the token's type
@@ -182,6 +204,7 @@ class Camera:
 
                 if self.c_type == 'N': self.c_end = True 
 
+                self.c_stuck_timer = 0
                 self.c_identified = True
                 print("identified", self.c_type)
 
@@ -198,6 +221,7 @@ class Camera:
                     if delta_angle >= 0: navigation.speed(-self.c_turn_velocity, self.c_turn_velocity)
                     else: navigation.speed(self.c_turn_velocity, -self.c_turn_velocity)
                 else: 
+                    self.c_stuck_timer = 0
                     self.c_found_center = True
 
             # Center the token within both cameras
@@ -215,6 +239,7 @@ class Camera:
                 if abs(left_count - right_count) < 6: 
                     navigation.speed(0, 0)
                     self.c_initial_position = self.gps.last
+                    self.c_stuck_timer = 0
                     self.c_centered_center = True
 
             # Get closer to send the right token
@@ -227,6 +252,7 @@ class Camera:
                 while ray != ray_right:
                     if self.lidar.ray_dist(ray, current_tick) < 0.039 or self.lidar.ray_front_dist(ray, current_tick) < 0.015:
                         print("done")
+                        self.c_stuck_timer = 0
                         self.c_close = True
                         break
                     ray += 1
@@ -246,7 +272,7 @@ class Camera:
                     dir = 0
                     if(abs(dist_e[1] - dist_d[1]) >= abs(dist_e[0] - dist_d[0])): dir = 1
 
-                    sign_coords = [self.gps.front[0] + dist * math.cos(self.gyro.last), self.gps.front[1] + dist * math.sin(self.gyro.last)]
+                    sign_coords = self.sign_list[self.c_id][1]
                     sign_type = bytes(self.c_type, "utf-8")
                     print("time to send")
                     print("coords", sign_coords)
@@ -264,16 +290,17 @@ class Camera:
                 if self.c_timer*self.time_step > 1550: 
                     print("finished sending")
                     self.c_sent = 1
+                    self.c_end = True
 
             # Get back to initial position
-            elif not self.c_back:  
+            '''elif not self.c_back:  
                 print("get back")
                 navigation.speed(-navigation.turn_velocity, -navigation.turn_velocity)
 
                 if self.dist_coords(self.c_initial_position, self.gps.last) < 0.005:
                     self.c_back = True
                     self.c_end = True
-                    print("done")
+                    print("done")'''
 
         if self.c_end:
             print("finished collecting")
@@ -284,8 +311,8 @@ class Camera:
                 print("deleted", self.sign_list[self.c_id][1])
                 self.sign_colleted.append(self.sign_list[self.c_id])
                 self.sign_list.pop(self.c_id)
-            self.camera_left.enable(self.time_step*5)
-            self.camera_right.enable(self.time_step*5)
+            self.camera_left.enable(self.time_step*self.update_rate)
+            self.camera_right.enable(self.time_step*self.update_rate)
 
             return False
 
@@ -444,6 +471,26 @@ class Camera:
         return self.visvalingam_whyatt(sorted_vertices)
 
 
+    def verify_collect(self, img, hsv_img):
+        cont_black = 0
+
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        cv2.imwrite("gray_collect.png", gray_img)
+        for y in range(250):
+            for x in range(250):
+                if gray_img.item(x, y) <= 150 and not self.is_wall([hsv_img.item(x, y, 0), hsv_img.item(x, y, 1), hsv_img.item(x, y, 2)]): 
+                    cont_black += 1
+
+        print("black", cont_black)
+        if(cont_black >= 5000):
+            print("Not Collected")
+            return False
+        else:
+            print("Already Collected")
+            return True
+        #return False
+
+
     def identify_letter(self, gray_img):
         middle_black = False
         for y in range(-10, 11, 1):
@@ -516,6 +563,8 @@ class Camera:
         warped = cv2.warpPerspective(np.float32(img), M, (resolution, resolution))        
         warped_hsv = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
 
+        if self.verify_collect(warped, warped_hsv): return 'N'
+
         cv2.imwrite("warped.png", warped)
 
         # Define the ranges of the colors
@@ -562,10 +611,10 @@ class Camera:
 
 
     def seen(self, current_tick):
-        ray_left = round((math.pi-(1.2))*255.5/math.pi + 255.5)
+        ray_left = round((math.pi-(1.2))*255/math.pi + 255)
         ray_left = ray_left % 511
 
-        ray_right = round((math.pi+(1.2))*255.5/math.pi + 255.5)
+        ray_right = round((math.pi+(1.2))*255/math.pi + 255)
         ray_right = ray_right % 511
 
         ray = ray_left
@@ -575,7 +624,7 @@ class Camera:
             if ang > math.pi: ang -= 2*math.pi
 
             w = False
-            max_dist = 0.24
+            max_dist = 0.18
             dist = self.dist_coords(self.gps.front, [coordX, coordY])
             if dist > max_dist or math.isnan(dist):
                 coordX = self.gps.front[0] + max_dist * math.cos(ang)
@@ -682,26 +731,25 @@ class Camera:
             [x_left, x_right] = d
             
             if abs(topwall[x_right]-topwall[x_left]) <= 6 and (topwall[x_right] > 1 or self.is_wall([hsv_img.item(0, x_right, 0), hsv_img.item(0, x_right, 1), hsv_img.item(0, x_right, 2)])):
-                #print("TOKEN ===", (x_left+x_right)/2, "============================")
-                #print("aqui", x_left, x_right)
+                '''print("TOKEN ===", (x_left+x_right)/2, "============================")
+                print("aqui", x_left, x_right)
+                print("gps", self.gps.last)'''
 
-                if ((x_left+x_right)/2) <= 128: 
+                if ((x_left+x_right)/2) < 128: 
                     img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 64) + 0.75
-                if ((x_left+x_right)/2) > 128:
+                if ((x_left+x_right)/2) >= 128:
                     img_angle = math.atan((-((x_left+x_right)/2-128)+63.5) * math.tan(1.5/2) / 64) - 0.75
                 
-                raio = round( ((math.pi-(img_angle))*255.5/math.pi) + 255.5 )
-                raio = raio % 511
+                ray = round( ((math.pi-(img_angle))*255.5/math.pi) + 255.5 )
+                ray = ray % 511
 
-                dist = self.lidar.ray_front_dist(raio, current_tick)
-                #print("raio", raio)
-                #print("dist", dist)
-                #print("img angle", img_angle)
-                #print("ang total", self.gyro.last+img_angle)
+                dist = self.lidar.ray_front_dist(ray, current_tick)
+                '''print("raio", ray)
+                print("dist", dist)
+                print("img angle", img_angle)'''
 
                 if not math.isnan(dist) and dist < 0.8:
-                    a = self.gps.front[0] + dist * (math.cos(self.gyro.last+img_angle))
-                    b = self.gps.front[1] + dist * (math.sin(self.gyro.last+img_angle))
+                    [a, b] = self.lidar.ray_coords(ray, 2, current_tick)
 
                     #print("coords", a, b)
 
@@ -710,26 +758,22 @@ class Camera:
 
                     aux = 2*math.pi/511
 
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
+                    [ad, bd] = self.lidar.ray_coords((ray+rd) % 511, 2, current_tick)
+                    [ae, be] = self.lidar.ray_coords((ray-rd+511) % 511, 2, current_tick)
 
                     ang = math.atan2(b - self.gps.last[1], a - self.gps.last[0]) 
                     ang_max = math.atan2(be-bd, ae-ad)
                     ang_min = math.atan2(bd-be, ad-ae)
                     
-                    rd = 3
-                    ae = self.gps.front[0] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.cos(self.gyro.last+img_angle+rd*aux))
-                    be = self.gps.front[1] + self.lidar.ray_front_dist((raio-rd+511)%511, current_tick) * (math.sin(self.gyro.last+img_angle+rd*aux))
-                    ad = self.gps.front[0] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.cos(self.gyro.last+img_angle-rd*aux))
-                    bd = self.gps.front[1] + self.lidar.ray_front_dist((raio+rd)%511, current_tick) * (math.sin(self.gyro.last+img_angle-rd*aux))
+                    rd = 5
+                    [ad, bd] = self.lidar.ray_coords((ray+rd) % 511, 2, current_tick)
+                    [ae, be] = self.lidar.ray_coords((ray-rd+511) % 511, 2, current_tick)
 
                     #print("coords left", ae, be)
                     #print("coords right", ad, bd)
-                    #print("dist left", self.dist_coords([ae, be], [a, b]))
-                    #print("dist right", self.dist_coords([a, b], [ad, bd]))
-                    #print("dist left-right", self.dist_coords([ae, be], [ad, bd]))
+                    '''print("dist left", self.dist_coords([ae, be], [a, b]))
+                    print("dist right", self.dist_coords([a, b], [ad, bd]))
+                    print("dist left-right", self.dist_coords([ae, be], [ad, bd]))'''
 
                     if (self.dist_coords([ae, be], [ad, bd]) < 0.06) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
                         #print("passou dists")
@@ -747,14 +791,14 @@ class Camera:
                                     if vitima_igual:
                                         self.sign_list.pop(c)
                                     elif x_right - x_left >= v[0]:
-                                        self.sign_list[c] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]]
+                                        self.sign_list[c] = [x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max], self.sign_list[c][5]]
                                     vitima_igual = True
                             c = c + 1
 
                         
-                        if not vitima_igual and ((abs(ang-ang_min) > 0.2 and 2*math.pi-abs(ang-ang_min) > 0.2) and (abs(ang-ang_max) > 0.2 and 2*math.pi-abs(ang-ang_max) > 0.2) or dist < 0.24):
+                        if not vitima_igual and ((abs(ang-ang_min) > 0.2 and 2*math.pi-abs(ang-ang_min) > 0.2) and (abs(ang-ang_max) > 0.2 and 2*math.pi-abs(ang-ang_max) > 0.2) or dist < 0.12):
                             print("ADDED TOKEN", a, b, str(int(a*100)), str(int(b*100)))
-                            self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max]])
+                            self.sign_list.append([x_right - x_left, [a, b], [ae, be], [ad, bd], [ang_min, ang_max], 0])
                             cv2.imwrite("vitima_add_" + str(int(a*100)) + "_" + str(int(b*100)) + ".png", img)
 
 
@@ -824,29 +868,45 @@ class Camera:
 
                 min_top = min(min_top, y)
 
-                coords = self.pixel_ground_position([x, y])
-                dist = self.dist_coords(self.gps.last, coords)
+                if y > 0: top_hsv = [hsv_img.item(y-1, x, 0), hsv_img.item(y-1, x, 1), hsv_img.item(y-1, x, 2)]
+                if y < 39: bottom_hsv = [hsv_img.item(y+1, x, 0), hsv_img.item(y+1, x, 1), hsv_img.item(y+1, x, 2)]
+                if x < 255: right_hsv = [hsv_img.item(y, x+1, 0), hsv_img.item(y, x+1, 1), hsv_img.item(y, x+1, 2)]
+                if x > 0: left_hsv = [hsv_img.item(y, x-1, 0), hsv_img.item(y, x-1, 1), hsv_img.item(y, x-1, 2)]
 
-                if coords != [1000, 1000] and dist < 0.3:
-                    a, b = int(coords[0] / 0.06), int(coords[1] / 0.06)
-                    if a != 0: a = int((a+(a/abs(a)))/2)
-                    if b != 0: b = int((b+(b/abs(b)))/2)
+                top, bot, left, right = False, False, False, False
+                if y == 0 or ((abs(initial_hsv[0] - top_hsv[0]) > 10 or abs(initial_hsv[1] - top_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and top_hsv[2] > 188))):
+                    top = True
+                if y == 39 or ((abs(initial_hsv[0] - bottom_hsv[0]) > 10 or abs(initial_hsv[1] - bottom_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and bottom_hsv[2] > 188))):
+                    bot = True
+                if x == 0 or ((abs(initial_hsv[0] - left_hsv[0]) > 10 or abs(initial_hsv[1] - left_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and left_hsv[2] > 188))):
+                    left = True
+                if x == 255 or ((abs(initial_hsv[0] - right_hsv[0]) > 10 or abs(initial_hsv[1] - right_hsv[1]) > 0.1 or (initial_hsv[0] < 10 and initial_hsv[1] < 0.1 and right_hsv[2] > 188))):
+                    right = True
+                        
+                if not top and not bot and not left and not right:
+                    coords = self.pixel_ground_position([x, y])
+                    dist = self.dist_coords(self.gps.last, coords)
 
-                    minx, miny = a*0.12-0.06, b*0.12-0.06
-                    maxx, maxy = a*0.12+0.06, b*0.12+0.06
+                    if coords != [1000, 1000] and dist < 0.3:
+                        a, b = int(coords[0] / 0.06), int(coords[1] / 0.06)
+                        if a != 0: a = int((a+(a/abs(a)))/2)
+                        if b != 0: b = int((b+(b/abs(b)))/2)
 
-                    if dist < 0.2: border = 0.015
-                    else: border = 0.03
+                        minx, miny = a*0.12-0.06, b*0.12-0.06
+                        maxx, maxy = a*0.12+0.06, b*0.12+0.06
 
-                    if abs(coords[0]-minx) > border and abs(coords[0]-maxx) > border and abs(coords[1]-miny) > border and abs(coords[1]-maxy) > border:
-                        if all([a*0.12, b*0.12] != x for x in tiles): 
-                            #if colour != 'ob': 
-                                #cv2.imwrite("added" + str(x) + "_" + str(y) + "_" + colour + ".png", hsv_img)
-                                #print(a*0.12, b*0.12)
-                                #print(x, y)
-                                #print("coords", coords)
-                                #print("dist", dist)
-                            tiles.append([a*0.12, b*0.12])
+                        if dist < 0.2: border = 0.021
+                        else: border = 0.03
+
+                        if abs(coords[0]-minx) > border and abs(coords[0]-maxx) > border and abs(coords[1]-miny) > border and abs(coords[1]-maxy) > border:
+                            if all([a*0.12, b*0.12] != x for x in tiles): 
+                                if self.identify_colour(initial_hsv) != 'ob': 
+                                    cv2.imwrite("color_added" + str(x) + "_" + str(y) + "_" + self.identify_colour(initial_hsv) + ".png", hsv_img)
+                                    #print(a*0.12, b*0.12)
+                                    #print(x, y)
+                                    #print("coords", coords)
+                                    #print("dist", dist)
+                                tiles.append([a*0.12, b*0.12])
 
                 queue.append([x+1, y])
                 queue.append([x-1, y])
@@ -877,7 +937,7 @@ class Camera:
             for [i, j] in ground:
                 if not all(([a, b] == [i, j] or abs(b - j) > 3) for [a, b] in ground):
                     [coord_X, coord_Y] = self.pixel_ground_position([i, j-1])
-                    self.map.add_obstacle([coord_X, coord_Y])
+                    self.map.add_obstacle([coord_X, coord_Y], -1)
                     self.map.add_extra([coord_X, coord_Y], 'ob', 0)
                     print("added obstacle", [i, j], [coord_X, coord_Y])'''
 
@@ -909,7 +969,7 @@ class Camera:
                     #cv2.imwrite("obstacle_" + str(x) + "_" + str(y) + ".png", hsv_img) 
                     continue
 
-                if g_colour == 'N': continue
+                if g_colour == 'N' or g_colour == 'ob': continue
 
                 #print("tiles", tiles)
 
@@ -923,7 +983,7 @@ class Camera:
                             miny, maxy = t[1]-(a/100), t[1]+(a/100)
                             coord = [(((a-1)-i)*minx+i*maxx)/(a-1), (((a-1)-j)*miny+j*maxy)/(a-1)]
                             self.map.add_extra(coord, g_colour, 0)
-                            if g_colour == 'bh': self.map.add_obstacle(coord)
+                            if g_colour == 'bh': self.map.add_obstacle(coord, -1)
                 
         return
 
@@ -950,8 +1010,8 @@ class Camera:
                 for y in range(-1, 2):
                     if map_p[0]+x >= 0 and map_p[1]+y >= 0 and map_p[0]+x < np.size(self.map.map, 0) and map_p[1]+y < np.size(self.map.map, 1):
                         for v in self.map.map[map_p[0]+x, map_p[1]+y]:
-                            if v != 0 and self.dist_coords(p, v) < 0.01:
-                                print("parede", v, self.dist_coords(p, v))
+                            if v != 0 and self.dist_coords(p, v[0]) < 0.01:
+                                #print("parede", v, self.dist_coords(p, v[0]))
                                 return True
                 
         return False

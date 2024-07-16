@@ -43,23 +43,33 @@ class Lidar:
             coordZ_3 = self.gps.z + self.point_cloud[3][i].z
 
             # Close points to get if it's not on the edge of the wall
+            [coordX_d, coordY_d] = self.ray_coords((i+1) % 511, 2, current_tick)
+            [coordX_e, coordY_e] = self.ray_coords((i-1+511) % 511, 2, current_tick)
             [coordX_d2, coordY_d2] = self.ray_coords((i+2) % 511, 2, current_tick)
             [coordX_e2, coordY_e2] = self.ray_coords((i-2+511) % 511, 2, current_tick)
-            [coordX_d3, coordY_d3] = self.ray_coords((i+3) % 511, 2, current_tick)
-            [coordX_e3, coordY_e3] = self.ray_coords((i-3+511) % 511, 2, current_tick)
+            '''[coordX_d3, coordY_d3] = self.ray_coords((i+3) % 511, 2, current_tick)
+            [coordX_e3, coordY_e3] = self.ray_coords((i-3+511) % 511, 2, current_tick)'''
 
+            [coordX_d_3, coordY_d_3] = self.ray_coords((i+1) % 511, 3, current_tick)
+            [coordX_e_3, coordY_e_3] = self.ray_coords((i-1+511) % 511, 3, current_tick)
             [coordX_d2_3, coordY_d2_3] = self.ray_coords((i+2) % 511, 3, current_tick)
             [coordX_e2_3, coordY_e2_3] = self.ray_coords((i-2+511) % 511, 3, current_tick)
-            [coordX_d3_3, coordY_d3_3] = self.ray_coords((i+3) % 511, 3, current_tick)
-            [coordX_e3_3, coordY_e3_3] = self.ray_coords((i-3+511) % 511, 3, current_tick)
+            '''[coordX_d3_3, coordY_d3_3] = self.ray_coords((i+3) % 511, 3, current_tick)
+            [coordX_e3_3, coordY_e3_3] = self.ray_coords((i-3+511) % 511, 3, current_tick)'''
 
             # Dist to the close points
-            dist_ant = self.dist_coords([coordX, coordY], [coordX_d3, coordY_d3])
+            '''dist_ant = self.dist_coords([coordX, coordY], [coordX_d3, coordY_d3])
             dist_prox = self.dist_coords([coordX_e3, coordY_e3], [coordX, coordY])
+            dist_ap = self.dist_coords([coordX_e2, coordY_e2], [coordX_d2, coordY_d2])'''
+            dist_ant = self.dist_coords([coordX_e, coordY_e], [coordX_d2, coordY_d2])
+            dist_prox = self.dist_coords([coordX_e2, coordY_e2], [coordX_d, coordY_d])
             dist_ap = self.dist_coords([coordX_e2, coordY_e2], [coordX_d2, coordY_d2])
 
-            dist_ant_3 = self.dist_coords([coordX_3, coordY_3], [coordX_d3_3, coordY_d3_3])
+            '''dist_ant_3 = self.dist_coords([coordX_3, coordY_3], [coordX_d3_3, coordY_d3_3])
             dist_prox_3 = self.dist_coords([coordX_e3_3, coordY_e3_3], [coordX_3, coordY_3])
+            dist_ap_3 = self.dist_coords([coordX_e2_3, coordY_e2_3], [coordX_d2_3, coordY_d2_3])'''
+            dist_ant_3 = self.dist_coords([coordX_e_3, coordY_e_3], [coordX_d2_3, coordY_d2_3])
+            dist_prox_3 = self.dist_coords([coordX_e2_3, coordY_e2_3], [coordX_d_3, coordY_d_3])
             dist_ap_3 = self.dist_coords([coordX_e2_3, coordY_e2_3], [coordX_d2_3, coordY_d2_3])
 
             # Conditions to mark wall
@@ -79,9 +89,9 @@ class Lidar:
                                     coordY_3 += math.tan(-ang_y_3) * (coordZ_3 + 0.066)
                                     #print("conical shaped", ang_x_3, ang_y_3)
 
-                            self.map.add_obstacle([coordX_3, coordY_3])
+                            self.map.add_obstacle([coordX_3, coordY_3], 1)
 
-                    self.map.add_obstacle([coordX, coordY])
+                    self.map.add_obstacle([coordX, coordY], 1)
 
         self.map.to_png()
 
