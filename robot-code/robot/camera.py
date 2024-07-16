@@ -482,7 +482,7 @@ class Camera:
                     cont_black += 1
 
         print("black", cont_black)
-        if(cont_black >= 5000):
+        if(cont_black >= 4000):
             print("Not Collected")
             return False
         else:
