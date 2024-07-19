@@ -81,7 +81,7 @@ class Camera:
 
             self.c_id = self.closest_token(self.gps.last)
             if self.c_id == -1: self.c_end = True
-            self.c_turn_velocity = navigation.turn_velocity-1.5
+            self.c_turn_velocity = navigation.turn_velocity-0.5
             self.c_initial_tick = False
             self.c_side = "none"
             self.c_stuck_timer = 0
@@ -482,7 +482,7 @@ class Camera:
                     cont_black += 1
 
         print("black", cont_black)
-        if(cont_black >= 5000):
+        if(cont_black >= 4000):
             print("Not Collected")
             return False
         else:
@@ -731,9 +731,9 @@ class Camera:
             [x_left, x_right] = d
             
             if abs(topwall[x_right]-topwall[x_left]) <= 6 and (topwall[x_right] > 1 or self.is_wall([hsv_img.item(0, x_right, 0), hsv_img.item(0, x_right, 1), hsv_img.item(0, x_right, 2)])):
-                '''print("TOKEN ===", (x_left+x_right)/2, "============================")
+                print("TOKEN ===", (x_left+x_right)/2, "============================")
                 print("aqui", x_left, x_right)
-                print("gps", self.gps.last)'''
+                print("gps", self.gps.last)
 
                 if ((x_left+x_right)/2) < 128: 
                     img_angle = math.atan((-((x_left+x_right)/2)+63.5) * math.tan(1.5/2) / 64) + 0.75
@@ -744,14 +744,14 @@ class Camera:
                 ray = ray % 511
 
                 dist = self.lidar.ray_front_dist(ray, current_tick)
-                '''print("raio", ray)
+                print("raio", ray)
                 print("dist", dist)
-                print("img angle", img_angle)'''
+                print("img angle", img_angle)
 
                 if not math.isnan(dist) and dist < 0.8:
                     [a, b] = self.lidar.ray_coords(ray, 2, current_tick)
 
-                    #print("coords", a, b)
+                    print("coords", a, b)
 
                     rd = 1
                     if dist < 0.08: rd = 3
@@ -771,12 +771,12 @@ class Camera:
 
                     #print("coords left", ae, be)
                     #print("coords right", ad, bd)
-                    '''print("dist left", self.dist_coords([ae, be], [a, b]))
+                    print("dist left", self.dist_coords([ae, be], [a, b]))
                     print("dist right", self.dist_coords([a, b], [ad, bd]))
-                    print("dist left-right", self.dist_coords([ae, be], [ad, bd]))'''
+                    print("dist left-right", self.dist_coords([ae, be], [ad, bd]))
 
                     if (self.dist_coords([ae, be], [ad, bd]) < 0.06) and (self.dist_coords([ae, be], [a, b]) < 0.03) and (self.dist_coords([a, b], [ad, bd]) < 0.03):
-                        #print("passou dists")
+                        print("passou dists")
 
                         vitima_igual = False
 
@@ -895,7 +895,7 @@ class Camera:
                         minx, miny = a*0.12-0.06, b*0.12-0.06
                         maxx, maxy = a*0.12+0.06, b*0.12+0.06
 
-                        if dist < 0.2: border = 0.021
+                        if dist < 0.2: border = 0.023
                         else: border = 0.03
 
                         if abs(coords[0]-minx) > border and abs(coords[0]-maxx) > border and abs(coords[1]-miny) > border and abs(coords[1]-maxy) > border:

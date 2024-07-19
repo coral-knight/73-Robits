@@ -49,7 +49,7 @@ class Sensors:
             #if current_tick % 10 == 0:
             #    self.camera.seen(current_tick)
 
-            if current_tick % 10 == 0 and self.camera.c_initial_tick == True and turning == False:
+            if current_tick % 5 == 0 and self.camera.c_initial_tick == True and turning == False:
                 self.camera.update_token(current_tick)
                 if current_tick % 10 == 0: self.camera.update_ground()
 

@@ -26,10 +26,11 @@ class Robot:
         self.calibrated = False
         self.ended = False
         self.c_initial_pos = [0, 0]
-        self.c_total_gyro = 10
+        self.c_total_gyro = 0
         self.c_last_tick_gyro = 0
 
         self.final_rrt = RRTLocal(self.map, [0, 0])
+        self.end_lop = False
 
 
     def run_calibration(self):
@@ -73,6 +74,7 @@ class Robot:
         if self.navigation.check_LOP():
             self.calibration_timer = 0
             self.calibrated = False
+            self.end_lop = False
             return
         
         self.sensors.update(self.current_tick, self.navigation.turning)
@@ -91,7 +93,7 @@ class Robot:
 
                 # Create [x, y] slightly away from the sign's wall (vectors)
                 [a, b] = sign[1]
-                if self.dist_coords(self.sensors.gps.last, [a, b]) > 0.12: continue
+                if self.dist_coords(self.sensors.gps.last, [a, b]) > 0.15: continue
 
                 [ae, be] = sign[2]
                 [ad, bd] = sign[3]
@@ -152,7 +154,7 @@ class Robot:
 
             self.navigation.speed(0, 0)
 
-            print("RRT START")
+            print("RRT START 24.0.0")
 
             local_rrt = RRTLocal(self.map, self.sensors.gps.last)
 
@@ -220,8 +222,11 @@ class Robot:
                     if self.no_obstacle([x, y]): x, y = x, y
                     elif self.no_obstacle([x_right, y_right]): x, y = x_right, y_right
                     elif self.no_obstacle([x_left, y_left]): x, y = x_left, y_left
+                    else: x, y = [1000, 1000]
 
-                    cont = 0
+                    if [x, y] == [1000, 1000]: cont = 10000
+                    else: cont = 0
+
                     parent, _ = self.final_rrt.closest_point([x, y], 1)
                     while parent == [1000,1000] and cont < 10000:
                         new, _ = self.final_rrt.explore(1)
@@ -253,13 +258,14 @@ class Robot:
                     if new == [[1000,1000]]: cont = 10000
 
                 print("achou final", cont)
-                if cont == 10000: 
+                if cont == 10000 and not self.end_lop: 
                     print("éhh......", [0, 0])
                     #self.final_rrt.print()
                     self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
                     self.navigation.explored = False
+                    self.end_lop = True
                 if cont < 10000: 
-                    self.final_rrt.print()
+                    #self.final_rrt.print()
                     self.final_rrt.connect([0, 0], parent)
                     self.navigation.solve([[0, 0], self.final_rrt.real_to_pos([0, 0])], self.final_rrt.graph, [self.sensors.gps.last, self.final_rrt.real_to_pos(self.sensors.gps.last)], "end")
 
@@ -306,7 +312,7 @@ class Robot:
                 self.run_calibration()
             elif not self.ended:
                 self.run_simulation()
-                #self.navigation.speed(0, 0)
+                #self.navigation.speed(2, 2)
                 #self.sensors.update(self.current_tick, False)
             else:
                 self.sensors.update(self.current_tick, self.navigation.turning)

@@ -37,8 +37,11 @@ class Navigation:
 
     def reset(self):
         self.exploring = False
+        self.explored = False
         self.collecting = False
         self.walk_collect = False
+        self.turning = True
+        self.ending = False
         self.action_list = []
 
         self.stuck_counter = 0
@@ -274,8 +277,8 @@ class Navigation:
             print("=== LOP LOP LOP LOP LOP ===")
             lop = True
 
-            print(self.last_pos[1], abs(self.last_pos[1] - (-0.02175)))
-            if abs(self.last_pos[1] - (-0.02175)) > 0.003:
+            print(self.last_pos[1], abs(self.last_pos[1] - (-0.01175)))
+            if abs(self.last_pos[1] - (-0.01175)) > 0.0015:
                 print("BLACKHOLE")
 
                 ang_front, ang_side = self.last_pos[2], self.last_pos[3]
@@ -302,7 +305,7 @@ class Navigation:
                         self.map.add_extra(coord, 'bh', 0)
             else: print("STUCK")
 
-        self.last_pos = [self.sensors.gps.last, self.sensors.gps.gps.getValues()[1], self.sensors.gyro.last_front, self.sensors.gyro.last_side]
+        self.last_pos = [self.sensors.gps.last, self.sensors.gps.z, self.sensors.gyro.last_front, self.sensors.gyro.last_side]
 
         if lop: self.reset()
         return lop

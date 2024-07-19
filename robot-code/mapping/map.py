@@ -229,7 +229,7 @@ class Map:
                         if(aux[0] == 1): xTile -= 1
                         if(aux[1] == 1): yTile -= 1
                         
-                        if(cor == 'ob'):
+                        if(cor == 'ob' or cor == 'wa' or cor == 'N'):
                             continue
 
                         if(cor == 'bh'):
