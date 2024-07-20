@@ -99,7 +99,8 @@ class Lidar:
     
 
     def ray_coords(self, ray, layer, current_tick):
-        if self.last_update[layer] < current_tick: self.point_cloud[layer] = np.array(self.lidar.getLayerPointCloud(layer)[0:512])
+        if self.last_update[layer] < current_tick: 
+            self.point_cloud[layer] = np.array(self.lidar.getLayerPointCloud(layer)[0:512])
         self.last_update[layer] = current_tick
 
         point = self.point_cloud[layer][ray]
@@ -107,23 +108,31 @@ class Lidar:
         coordX = self.gps.front[0] + math.cos(self.gyro.last) * (-point.x) - math.sin(self.gyro.last) * (-point.y)
         coordY = self.gps.front[1] + math.sin(self.gyro.last) * (-point.x) + math.cos(self.gyro.last) * (-point.y)
 
+        if math.isnan(coordX) or math.isnan(coordY): return [1000, 1000]
         return [coordX, coordY]
 
 
     def ray_dist(self, ray, current_tick):
-        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
+        if self.last_update[2] < current_tick: 
+            self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
         self.last_update[2] = current_tick
 
-        return self.dist_coords(self.gps.last, self.ray_coords(ray, 2, current_tick))
+        dist = self.dist_coords(self.gps.last, self.ray_coords(ray, 2, current_tick))
+
+        if dist > 1000 or math.isnan(dist): return 1000
+        return dist
     
 
     def ray_front_dist(self, ray, current_tick):
-        if self.last_update[2] < current_tick: self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
+        if self.last_update[2] < current_tick: 
+            self.point_cloud[2] = np.array(self.lidar.getLayerPointCloud(2)[0:512])
         self.last_update[2] = current_tick
 
         point = self.point_cloud[2][ray]
 
-        return ((point.x)**2+(point.y)**2)**0.5
+        dist = ((point.x)**2+(point.y)**2)**0.5
+        if dist > 1000 or math.isnan(dist): return 1000
+        return dist
     
     
     def dist_coords(self, a, b):

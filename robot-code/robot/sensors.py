@@ -49,15 +49,15 @@ class Sensors:
             #if current_tick % 10 == 0:
             #    self.camera.seen(current_tick)
 
-            if current_tick % 5 == 0 and self.camera.c_initial_tick == True and turning == False:
-                self.camera.update_token(current_tick)
-                if current_tick % 10 == 0: self.camera.update_ground()
+            if self.camera.c_initial_tick == True and turning == False:
+                if current_tick % 5 == 2: self.camera.update_token(current_tick)
+                if current_tick % 10 == 4: self.camera.update_ground()
 
         for i in range(-10, 11):
             angle = self.gyro.last + i * math.pi/20
             self.map.explored([self.gps.last[0] + 0.035*math.cos(angle), self.gps.last[1] + 0.035*math.sin(angle)])
 
-        if current_tick % 20 == 0: self.map.to_detailed_png(current_tick)
+        if current_tick % 20 == 3: self.map.to_detailed_png(current_tick)
         self.map.to_png_seen()
 
         return

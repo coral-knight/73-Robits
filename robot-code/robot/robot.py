@@ -30,7 +30,33 @@ class Robot:
         self.c_last_tick_gyro = 0
 
         self.final_rrt = RRTLocal(self.map, [0, 0])
-        self.end_lop = False
+        self.end_lop = 0
+        self.error_cont = 0
+
+
+    def end_map(self):
+        print("ENDING ==================================================")
+        print("remaining time", self.sensors.receiver.remaining_simulation_time, self.sensors.receiver.remaining_real_time)
+
+        self.map.add_extra([-0.03, -0.03], 5, 0)
+        self.map.add_extra([0.03, -0.03], 5, 0)
+        self.map.add_extra([-0.03, 0.03], 5, 0)
+        self.map.add_extra([0.03, 0.03], 5, 0)
+
+        definitive_map = np.array(self.map.print_tile_map())
+        print("definitive_map")
+        print(definitive_map)
+        d = definitive_map.shape
+        d_bytes = struct.pack('2i', *d)
+        flatMap = ','.join(definitive_map.flatten())
+        dub_bytes = flatMap.encode('utf-8')
+        final_bytes = d_bytes + dub_bytes
+        self.sensors.emitter.send(final_bytes)
+        map_evaluate_request = struct.pack('c', b'M')
+        self.sensors.emitter.send(map_evaluate_request)
+        exit_mes = struct.pack('c', b'E')
+        self.sensors.emitter.send(exit_mes)
+        self.ended = True
 
 
     def run_calibration(self):
@@ -44,13 +70,15 @@ class Robot:
         if self.current_tick == 1: self.sensors.gps.calibrate()
         self.sensors.gps.update()
 
-        if self.calibration_timer < 5:
+        if self.calibration_timer < 10: 
+            self.navigation.speed(0, 0)
+        elif self.calibration_timer < 15:
             self.navigation.speed(2, 2)
-        elif self.calibration_timer == 5:
+        elif self.calibration_timer == 15:
             self.sensors.gyro.calibrate([self.sensors.gps.last[0]-self.c_initial_pos[0], self.sensors.gps.last[1]-self.c_initial_pos[1]])
             self.c_last_tick_gyro = self.sensors.gyro.last
             print("CALIBRATED GYRO", self.sensors.gyro.last)
-        elif self.calibration_timer < 10:
+        elif self.calibration_timer < 20:
             self.navigation.speed(-2, -2)
         else:
             self.sensors.update(self.current_tick, self.navigation.turning)
@@ -71,10 +99,12 @@ class Robot:
         Runs a tick of the robot simulation
         '''
 
+        # Checks sensors
         if self.navigation.check_LOP():
             self.calibration_timer = 0
             self.calibrated = False
-            self.end_lop = False
+            self.end_lop = 0
+            self.sensors.camera.reset()
             return
         
         self.sensors.update(self.current_tick, self.navigation.turning)
@@ -258,12 +288,17 @@ class Robot:
                     if new == [[1000,1000]]: cont = 10000
 
                 print("achou final", cont)
-                if cont == 10000 and not self.end_lop: 
-                    print("éhh......", [0, 0])
-                    #self.final_rrt.print()
-                    self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
-                    self.navigation.explored = False
-                    self.end_lop = True
+                if cont == 10000:
+                    print("end lop", self.end_lop)
+                    if self.end_lop % 5 == 0: 
+                        print("éhh......", [0, 0])
+                        #self.final_rrt.print()
+                        self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
+                        self.navigation.explored = False
+                    elif self.end_lop > 25:
+                        print("vamo enviar logo")
+                        self.end_map()
+                    self.end_lop += 1
                 if cont < 10000: 
                     #self.final_rrt.print()
                     self.final_rrt.connect([0, 0], parent)
@@ -274,29 +309,8 @@ class Robot:
         if not self.navigation.collecting and self.navigation.exploring:
             action_list = self.navigation.navigate()
             for action in action_list:
-                if action[0] == "exit" or self.sensors.receiver.remaining_simulation_time <= 3 or self.sensors.receiver.remaining_real_time <= 3:
-                    print("ENDING ==================================================")
-                    print("remaining time", self.sensors.receiver.remaining_simulation_time, self.sensors.receiver.remaining_real_time)
-
-                    self.map.add_extra([-0.03, -0.03], 5, 0)
-                    self.map.add_extra([0.03, -0.03], 5, 0)
-                    self.map.add_extra([-0.03, 0.03], 5, 0)
-                    self.map.add_extra([0.03, 0.03], 5, 0)
-
-                    definitive_map = np.array(self.map.print_tile_map())
-                    print("definitive_map")
-                    print(definitive_map)
-                    d = definitive_map.shape
-                    d_bytes = struct.pack('2i', *d)
-                    flatMap = ','.join(definitive_map.flatten())
-                    dub_bytes = flatMap.encode('utf-8')
-                    final_bytes = d_bytes + dub_bytes
-                    self.sensors.emitter.send(final_bytes)
-                    map_evaluate_request = struct.pack('c', b'M')
-                    self.sensors.emitter.send(map_evaluate_request)
-                    exit_mes = struct.pack('c', b'E')
-                    self.sensors.emitter.send(exit_mes)
-                    self.ended = True
+                if action[0] == "exit":
+                    self.end_map()
 
 
         return
@@ -311,9 +325,29 @@ class Robot:
             if not self.calibrated:
                 self.run_calibration()
             elif not self.ended:
-                self.run_simulation()
-                #self.navigation.speed(2, 2)
-                #self.sensors.update(self.current_tick, False)
+                if self.sensors.receiver.remaining_simulation_time <= 3 or self.sensors.receiver.remaining_real_time <= 3:
+                    self.end_map()
+
+                else:
+                    try:
+                        self.run_simulation()
+                        #self.navigation.speed(2, 2)
+                        #self.sensors.update(self.current_tick, False)
+
+                    except Exception as e:
+                        try: print(e.message)
+                        except: print("no message")
+                        try: print(e.args)
+                        except: print("no args")
+
+                        self.error_cont += 1
+                        if self.error_cont >= 10:
+                            self.sensors.emitter.send( struct.pack('c', 'L'.encode(encoding="utf-8", errors="ignore")) )
+                        if self.error_cont >= 20:
+                            self.end_map()
+
+                    else:
+                        self.error_cont = 0
             else:
                 self.sensors.update(self.current_tick, self.navigation.turning)
         return
